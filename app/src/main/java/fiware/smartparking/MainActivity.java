@@ -123,13 +123,16 @@ public class MainActivity extends Activity {
 
         @Override
         public boolean onMapObjectsSelected(List<ViewObject> list) {
+            if (parkingQueryTask != null) for (int i=0; i<list.size();i++)
+                parkingQueryTask.changeInfoState(list.get(i));
+
             return false;
         }
 
         @Override
         public boolean onTapEvent(PointF pointF) {
-            targetRoute = null;
-            getDirections(null);
+            if (parkingQueryTask != null)
+                parkingQueryTask.hideAllInfo();
             return false;
         }
 
@@ -189,6 +192,16 @@ public class MainActivity extends Activity {
         currentSpeed = (TextView)findViewById(R.id.currentSpeed);
         distance = (TextView)findViewById(R.id.distance);
         ETA = (TextView)findViewById(R.id.eta);
+
+
+        nextRoad.setClickable(true);
+        nextRoad.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View v) {
+                targetRoute = null;
+                getDirections(null);
+            }
+        });
 
         // Search for the map fragment to finish setup by calling init().
 
@@ -314,6 +327,12 @@ public class MainActivity extends Activity {
     }
 
     private void doGetDirections() {
+
+        if (parkingQueryTask != null) {
+            parkingQueryTask.clearMarkers(map);
+            parkingQueryTask = null;
+        }
+
         hideWaypointerObjects();
 
         GeoCoordinate start = targetRoute.getStart();
@@ -364,6 +383,8 @@ public class MainActivity extends Activity {
         }
     };
 
+    MockParkingQueryTask parkingQueryTask = null;
+
     private void updateNavigationInfo(final GeoPosition loc) {
         Maneuver nextManeuver = navMan.getNextManeuver();
 
@@ -373,7 +394,7 @@ public class MainActivity extends Activity {
 
         // Update the average speed
         int avgSpeed = (int) loc.getSpeed();
-        currentSpeed.setText(String.format("%d m/s", avgSpeed));
+        currentSpeed.setText("Speed: "+String.format("%d m/s", avgSpeed));
 
         // Update ETA
         SimpleDateFormat sdf = new SimpleDateFormat("k:mm", Locale.ENGLISH);
@@ -381,12 +402,16 @@ public class MainActivity extends Activity {
         //sdf.setTimeZone(TimeZone.getTimeZone("GMT+2"));
 
         Date ETADate = navMan.getEta(true, Route.TrafficPenaltyMode.DISABLED);
-        ETA.setText(sdf.format(ETADate));
+        ETA.setText("ETA: "+sdf.format(ETADate));
 
         //Detecting destination proximity (+-250 mt Area);
         GeoBoundingBox gbb = new GeoBoundingBox(targetRoute.getDestination(),500,500);
         if (gbb.contains(loc.getCoordinate())) {
             map.setZoomLevel(map.getMaxZoomLevel()-3);
+            if (parkingQueryTask == null) {
+                parkingQueryTask = new MockParkingQueryTask();
+                parkingQueryTask.queryAndDrawParking(map,gbb);
+            }
         }
     }
 
@@ -397,7 +422,7 @@ public class MainActivity extends Activity {
             List<MapObject> objectList = Arrays.asList(objects);
             map.removeMapObjects(objectList);
 
-             startMarker = endMarker = null;
+            startMarker = endMarker = null;
         }
 
         if(route != null) {
