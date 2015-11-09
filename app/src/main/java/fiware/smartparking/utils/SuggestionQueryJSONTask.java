@@ -1,4 +1,4 @@
-package fiware.smartparking;
+package fiware.smartparking.utils;
 
 import android.content.Context;
 import android.net.Uri;
@@ -42,12 +42,12 @@ public class SuggestionQueryJSONTask extends AsyncTask<Void, Void, String> {
     public static String IO_ERROR = "IO Exception Error";
 
 
-    SuggestionQueryJSONTask(double lat, double lon, String query, Boolean pendingRequest,
+    public SuggestionQueryJSONTask(double lat, double lon, String query, Boolean pendingRequest,
                             AutoCompleteTextView view, ArrayAdapter<String> adapter, Context activityContext) {
         this(lat,lon,query,pendingRequest,20,view,adapter,activityContext);
     }
 
-    SuggestionQueryJSONTask(double lat, double lon, String query, Boolean pendingRequest,
+    public SuggestionQueryJSONTask(double lat, double lon, String query, Boolean pendingRequest,
                             int resultsAccepted, AutoCompleteTextView view, ArrayAdapter<String> adapter, Context activityContext){
         this.lat = lat;
         this.lon = lon;

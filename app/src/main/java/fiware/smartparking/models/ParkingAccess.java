@@ -1,7 +1,6 @@
 package fiware.smartparking.models;
 
 import com.here.android.mpa.common.GeoCoordinate;
-import com.here.android.mpa.search.Category;
 
 import java.util.ArrayList;
 

@@ -4,3 +4,6 @@
 /gen
 /out
 /app/libs
+/app/src/main/gen
+main.iml
+test.iml

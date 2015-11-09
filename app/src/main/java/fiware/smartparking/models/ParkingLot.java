@@ -1,7 +1,5 @@
 package fiware.smartparking.models;
 
-import android.widget.ArrayAdapter;
-
 import java.util.ArrayList;
 
 /**
@@ -16,15 +14,15 @@ public class ParkingLot extends Parking {
     private ArrayList<ParkingAccess> exits;
     private float averageSpotWidth;
     private float averageSpotLength;
-    private float userRating; //¿Number?
+    private float userRating;
 
     public ParkingLot (Parking baseParking, ArrayList<ParkingLotCategory> category, int totalStoryNumber,
                        int firstAvailableStory, ArrayList<ParkingAccess> entrances, ArrayList<ParkingAccess> exits,
                        float averageSpotWidth, float averageSpotLength, float userRating){
-        super(baseParking.getLocation(),baseParking.isMetered(),baseParking.getMaximumAllowedDuration(),
+        super(baseParking.getCenter(),baseParking.getParkingArea(),baseParking.isMetered(),baseParking.getMaximumAllowedDuration(),
                 baseParking.getTotalSpotNumber(),baseParking.getAvailableSpotNumber(),baseParking.getExtraSpotNumber(),
                 baseParking.getPricePerMinute(), baseParking.getOpeningTime(),baseParking.getClosingTime(),
-                baseParking.getProbabilityOfSpotFinding(),baseParking.getParkingDisposition());
+                baseParking.getProbabilityOfSpotFinding(),baseParking.getAllowedVehicles(),baseParking.getParkingDisposition());
 
         this.category = category;
         this.totalStoryNumber = totalStoryNumber;

@@ -3,9 +3,9 @@ package fiware.smartparking;
 import android.app.Activity;
 import android.content.Intent;
 import android.graphics.PointF;
+import android.os.AsyncTask;
 import android.os.Bundle;
-import android.util.Log;
-import android.view.MotionEvent;
+import android.speech.tts.TextToSpeech;
 import android.view.View;
 import android.widget.Button;
 import android.widget.TextView;
@@ -14,13 +14,10 @@ import android.widget.Toast;
 import com.here.android.mpa.common.GeoBoundingBox;
 import com.here.android.mpa.common.GeoCoordinate;
 import com.here.android.mpa.common.GeoPosition;
-import com.here.android.mpa.common.IconCategory;
 import com.here.android.mpa.common.Image;
-import com.here.android.mpa.common.MapEngine;
 import com.here.android.mpa.common.OnEngineInitListener;
 import com.here.android.mpa.common.PositioningManager;
 import com.here.android.mpa.common.ViewObject;
-import com.here.android.mpa.guidance.LaneInfo;
 import com.here.android.mpa.guidance.NavigationManager;
 import com.here.android.mpa.mapping.Map;
 import com.here.android.mpa.mapping.MapFragment;
@@ -30,11 +27,7 @@ import com.here.android.mpa.mapping.MapObject;
 import com.here.android.mpa.mapping.MapRoute;
 import com.here.android.mpa.routing.Maneuver;
 import com.here.android.mpa.routing.Route;
-import com.here.android.mpa.routing.RouteManager;
-import com.here.android.mpa.routing.RouteOptions;
-import com.here.android.mpa.routing.RoutePlan;
 import com.here.android.mpa.search.ErrorCode;
-import com.here.android.mpa.search.ImageMedia;
 import com.here.android.mpa.search.ResultListener;
 import com.here.android.mpa.search.TextSuggestionRequest;
 
@@ -49,7 +42,14 @@ import java.util.List;
 import java.util.Locale;
 import java.util.TimeZone;
 
-public class MainActivity extends Activity {
+import fiware.smartparking.models.ParkingLot;
+import fiware.smartparking.utils.ParkingDrawTask;
+import fiware.smartparking.utils.StreetParkingQueryJSONTask;
+import fiware.smartparking.utils.TextToSpeechUtils;
+
+import android.speech.tts.TextToSpeech.OnInitListener;
+
+public class MainActivity extends Activity implements OnInitListener {
     // map embedded in the map fragment
     private Map map = null;
     // map fragment embedded in this activity
@@ -66,17 +66,11 @@ public class MainActivity extends Activity {
 
     private static Route targetRoute;
 
-    private TextView nextRoad, currentSpeed, ETA, distance;
+    private TextView nextRoad, currentSpeed, ETA;
 
     public static void setRoute(Route aRoute) {
         targetRoute = aRoute;
     }
-
-    public void goHome(View v) {
-        // Set the map center to Oporto center
-        goTo(map, DEFAULT_COORDS, Map.Animation.LINEAR);
-    }
-
 
     /**
      * Stops navigation manager.
@@ -97,7 +91,8 @@ public class MainActivity extends Activity {
         map.setZoomLevel(map.getMaxZoomLevel() - 3);
         map.setTilt(map.getMaxTilt() / 2);
         map.setOrientation(0);
-        map.setMapScheme(Map.Scheme.CARNAV_DAY);
+        //We have changed the Scheme to avoid issues with Labeled markers.
+        map.setMapScheme(Map.Scheme.PEDESTRIAN_DAY);
     }
 
     private MapGesture.OnGestureListener gestureListener = new MapGesture.OnGestureListener() {
@@ -123,16 +118,11 @@ public class MainActivity extends Activity {
 
         @Override
         public boolean onMapObjectsSelected(List<ViewObject> list) {
-            if (parkingQueryTask != null) for (int i=0; i<list.size();i++)
-                parkingQueryTask.changeInfoState(list.get(i));
-
             return false;
         }
 
         @Override
         public boolean onTapEvent(PointF pointF) {
-            if (parkingQueryTask != null)
-                parkingQueryTask.hideAllInfo();
             return false;
         }
 
@@ -190,10 +180,10 @@ public class MainActivity extends Activity {
 
         nextRoad = (TextView)findViewById(R.id.nextRoad);
         currentSpeed = (TextView)findViewById(R.id.currentSpeed);
-        distance = (TextView)findViewById(R.id.distance);
+        //distance = (TextView)findViewById(R.id.distance);
         ETA = (TextView)findViewById(R.id.eta);
 
-
+        //Changing interface to load direction activity on nextRoad onClick.
         nextRoad.setClickable(true);
         nextRoad.setOnClickListener(new View.OnClickListener() {
             @Override
@@ -202,6 +192,8 @@ public class MainActivity extends Activity {
                 getDirections(null);
             }
         });
+        //Adding a TTS check intent
+        TextToSpeechUtils.checkTTSIntent(this);
 
         // Search for the map fragment to finish setup by calling init().
 
@@ -215,10 +207,13 @@ public class MainActivity extends Activity {
                     map = mapFragment.getMap();
 
                     // Oporto downtown
-                    DEFAULT_COORDS = new GeoCoordinate(41.162142, -8.621953);
+                    //DEFAULT_COORDS = new GeoCoordinate(41.162142, -8.621953);
+                    // Aveiro, Portugal
+                    DEFAULT_COORDS = new GeoCoordinate(40.629793, -8.641633);
+
                     goTo(mapFragment.getMap(), DEFAULT_COORDS, Map.Animation.NONE);
 
-                    map.setExtrudedBuildingsVisible(true);
+                    map.setExtrudedBuildingsVisible(false);
                     map.getPositionIndicator().setVisible(true);
 
                     posMan = PositioningManager.getInstance();
@@ -244,6 +239,7 @@ public class MainActivity extends Activity {
             navMan.pause();
 
             hideWaypointerObjects();
+            TextToSpeechUtils.shouldShutdownTTS();
         }
 
         super.onPause();
@@ -266,6 +262,14 @@ public class MainActivity extends Activity {
         }
     }
 
+    @Override
+    protected void onStop(){
+        TextToSpeechUtils.shouldShutdownTTS();
+        super.onStop();
+    }
+
+
+
     /**
      * Attaches listeners to navigation manager.
      */
@@ -276,9 +280,12 @@ public class MainActivity extends Activity {
 
             navMan.addNavigationManagerEventListener(
                     new WeakReference<NavigationManager.NavigationManagerEventListener>(m_navigationListener));
+
+            navMan.addNewInstructionEventListener(
+                    new WeakReference<NavigationManager.NewInstructionEventListener>(m_instructionListener));
+
         }
     }
-
     /**
      * Detaches listeners from navigation manager.
      */
@@ -286,6 +293,7 @@ public class MainActivity extends Activity {
         if (navMan != null) {
             navMan.removeNavigationManagerEventListener(m_navigationListener);
             navMan.removePositionListener(m_navigationPositionListener);
+            navMan.removeNewInstructionEventListener(m_instructionListener);
         }
     }
 
@@ -328,9 +336,9 @@ public class MainActivity extends Activity {
 
     private void doGetDirections() {
 
-        if (parkingQueryTask != null) {
-            parkingQueryTask.clearMarkers(map);
-            parkingQueryTask = null;
+        if (parkingDrawTask != null) {
+            parkingDrawTask.clearMarkers();
+            parkingDrawTask = null;
         }
 
         hideWaypointerObjects();
@@ -383,18 +391,19 @@ public class MainActivity extends Activity {
         }
     };
 
-    MockParkingQueryTask parkingQueryTask = null;
+    ParkingDrawTask parkingDrawTask = null;
 
+    GeoCoordinate lastManeuverCoordinate = null;
     private void updateNavigationInfo(final GeoPosition loc) {
         Maneuver nextManeuver = navMan.getNextManeuver();
 
-        if(nextManeuver != null) {
+        if (nextManeuver != null) {
             nextRoad.setText(nextManeuver.getNextRoadName());
         }
 
         // Update the average speed
         int avgSpeed = (int) loc.getSpeed();
-        currentSpeed.setText("Speed: "+String.format("%d m/s", avgSpeed));
+        currentSpeed.setText("Speed: " + String.format("%d m/s", avgSpeed));
 
         // Update ETA
         SimpleDateFormat sdf = new SimpleDateFormat("k:mm", Locale.ENGLISH);
@@ -402,16 +411,29 @@ public class MainActivity extends Activity {
         //sdf.setTimeZone(TimeZone.getTimeZone("GMT+2"));
 
         Date ETADate = navMan.getEta(true, Route.TrafficPenaltyMode.DISABLED);
-        ETA.setText("ETA: "+sdf.format(ETADate));
+        ETA.setText("ETA: " + sdf.format(ETADate));
+
+
+        //Detecting maneuver proximity (+-50 mt)
+        TextToSpeechUtils.indicateManeuverProximity(nextManeuver, loc.getCoordinate(), 50);
 
         //Detecting destination proximity (+-250 mt Area);
-        GeoBoundingBox gbb = new GeoBoundingBox(targetRoute.getDestination(),500,500);
+        GeoBoundingBox gbb = new GeoBoundingBox(targetRoute.getDestination(), 500, 500);
         if (gbb.contains(loc.getCoordinate())) {
-            map.setZoomLevel(map.getMaxZoomLevel()-3);
-            if (parkingQueryTask == null) {
-                parkingQueryTask = new MockParkingQueryTask();
-                parkingQueryTask.queryAndDrawParking(map,gbb);
+            navMan.setMapUpdateMode(NavigationManager.MapUpdateMode.NONE);
+            map.setCenter(loc.getCoordinate(), Map.Animation.NONE);
+            map.setZoomLevel(map.getMaxZoomLevel() - 3);
+            if (parkingDrawTask == null) {
+                parkingDrawTask = new ParkingDrawTask(map);
+                StreetParkingQueryJSONTask strParkingQuery =
+                        new StreetParkingQueryJSONTask(parkingDrawTask, gbb);
+                strParkingQuery.executeOnExecutor(AsyncTask.THREAD_POOL_EXECUTOR, (Void[]) null);
+                ArrayList<ParkingLot> mock = ParkingDrawTask.getMockLotParkingList() ;
+                parkingDrawTask.drawParkingLots(gbb,mock);
+                TextToSpeechUtils.setLotParkingList(mock);
             }
+            //Detecting parking proximity  (+-25 mt)
+            TextToSpeechUtils.indicateParkingProximity(loc.getCoordinate(),25);
         }
     }
 
@@ -457,9 +479,8 @@ public class MainActivity extends Activity {
 
     /**
      *   Starts guidance simulation.
-     *
      */
-    private void startGuidance(Route route) {
+    private void startGuidance(final Route route) {
         stopNavigationManager();
 
         if (navMan == null) {
@@ -470,28 +491,52 @@ public class MainActivity extends Activity {
         attachNavigationListeners();
 
         navMan.setMap(map);
-
         navMan.setMapUpdateMode(NavigationManager.MapUpdateMode.POSITION_ANIMATION);
 
-        // Disable navigation sounds
-        /*
-          m_audioFlags = m_navigationManager.getEnabledAudioEvents();
-          m_navigationManager.setEnabledAudioEvents(EnumSet.noneOf(NavigationManager.AudioEvent.class));
-        */
-
-        // Disable traffic avoidance mode as we use pedestrian guidance
-        // navigator.setTrafficAvoidanceMode(TrafficAvoidanceMode.DISABLE);
-
         // Start navigation simulation
+        simulate(route);
+
+    }
+
+    private void simulate(Route route){
         NavigationManager.Error error = navMan.simulate(route, 14);
+
         if (error != NavigationManager.Error.NONE) {
             Toast.makeText(getApplicationContext(),
-                     "Failed to start navigation. Error: " + error, Toast.LENGTH_LONG).show();
+                    "Failed to start navigation. Error: " + error, Toast.LENGTH_LONG).show();
             navMan.setMap(null);
             return;
         }
 
         navMan.setNaturalGuidanceMode(
-                    EnumSet.of(NavigationManager.NaturalGuidanceMode.JUNCTION));
+                EnumSet.of(NavigationManager.NaturalGuidanceMode.JUNCTION));
     }
+
+    private NavigationManager.NewInstructionEventListener m_instructionListener = new NavigationManager.NewInstructionEventListener() {
+        @Override
+        public void onNewInstructionEvent() {
+            TextToSpeechUtils.shouldFollowManeuver(true);
+        }
+    };
+
+    protected void onActivityResult(int requestCode, int resultCode, Intent data) {
+        if (requestCode == TextToSpeechUtils.MY_DATA_CHECK_CODE) {
+            if (resultCode == TextToSpeech.Engine.CHECK_VOICE_DATA_PASS) {
+                TextToSpeechUtils.shouldCreateTTS(this,this);
+            }
+            else {
+                Intent installTTSIntent = new Intent();
+                installTTSIntent.setAction(TextToSpeech.Engine.ACTION_INSTALL_TTS_DATA);
+                startActivity(installTTSIntent);
+            }
+        }
+    }
+
+    public void onInit(int initStatus) {
+        if (initStatus == TextToSpeech.SUCCESS) {
+            TextToSpeechUtils.setLanguage(Locale.US);
+        }
+    }
+
+
 }

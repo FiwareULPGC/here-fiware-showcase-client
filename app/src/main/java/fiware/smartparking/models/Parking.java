@@ -1,6 +1,7 @@
 package fiware.smartparking.models;
 
 import com.here.android.mpa.common.GeoCoordinate;
+import com.here.android.mpa.common.GeoPolyline;
 
 import java.util.ArrayList;
 
@@ -18,7 +19,8 @@ public class Parking {
     }
 
 
-    private ArrayList<GeoCoordinate> location;
+    private GeoCoordinate center;
+    private ArrayList<GeoPolyline> location;
     private boolean metered;
     private int maximumAllowedDuration; //minutes
     private int totalSpotNumber;
@@ -32,16 +34,11 @@ public class Parking {
     private float probabilityOfSpotFinding;
     private ParkingDisposition parkingDisposition;
 
-    public Parking(ArrayList<GeoCoordinate> location, boolean metered, int maximumAllowedDuration, int totalSpotNumber,
+    public Parking(GeoCoordinate center, ArrayList<GeoPolyline> location, boolean metered, int maximumAllowedDuration, int totalSpotNumber,
                    int availableSpotNumber,int extraSpotNumber, float pricePerMinute, String openingTime,
-                   String closingTime, float probabilityOfSpotFinding, ParkingDisposition disposition) {
+                   String closingTime, float probabilityOfSpotFinding, ArrayList<VehicleType> allowedVehicles, ParkingDisposition disposition) {
 
-
-        ArrayList<VehicleType> vehicleTypes = new ArrayList<VehicleType>();
-        vehicleTypes.add(VehicleType.Bicycle);
-        vehicleTypes.add(VehicleType.Car);
-        vehicleTypes.add(VehicleType.Motorbike);
-
+        this.center = center;
         this.location = location;
         this.maximumAllowedDuration = maximumAllowedDuration;
         this.totalSpotNumber = totalSpotNumber;
@@ -51,15 +48,18 @@ public class Parking {
         this.openingTime = openingTime;
         this.closingTime = closingTime;
         this.probabilityOfSpotFinding = probabilityOfSpotFinding;
-        this.allowedVehicles = vehicleTypes;
+        this.allowedVehicles = allowedVehicles;
         this.parkingDisposition = disposition;
         this.metered = metered;
 
     }
 
-    public GeoCoordinate getLocationAt (int index) { return this.location.get(index); }
-    public int getLocationSize() {return this.location.size();}
-    public ArrayList<GeoCoordinate> getLocation() {return this.location;}
+    public GeoCoordinate getCenter () { return this.center; }
+
+
+    public GeoPolyline getParkingAreaPolylineAt (int index) { return this.location.get(index); }
+    public int getParkingPolylines() {return this.location.size();}
+    public ArrayList<GeoPolyline> getParkingArea() {return this.location;}
 
     public int getMaximumAllowedDuration() { return maximumAllowedDuration;}
     public int getTotalSpotNumber() { return totalSpotNumber; }
@@ -74,9 +74,10 @@ public class Parking {
 
     public VehicleType getVehicleTypeAt (int index) {return this.allowedVehicles.get(index);}
     public int getVehicleTypesSize() {return this.allowedVehicles.size();}
+    public ArrayList<VehicleType> getAllowedVehicles() { return allowedVehicles;}
 
     public void clearLocations() {this.location.clear();}
-    public void addLocation(GeoCoordinate location) {this.location.add(location);}
+    public void addPolyline(GeoPolyline location) {this.location.add(location);}
 
     public void setMaximumAllowedDuration(int maximumAllowedDuration) {
         this.maximumAllowedDuration = maximumAllowedDuration;

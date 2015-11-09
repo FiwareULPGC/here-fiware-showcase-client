@@ -1,6 +1,5 @@
 package fiware.smartparking;
 
-import com.here.android.mpa.common.GeoBoundingBox;
 import com.here.android.mpa.mapping.Map;
 import com.here.android.mpa.mapping.MapRoute;
 import com.here.android.mpa.routing.RouteManager;

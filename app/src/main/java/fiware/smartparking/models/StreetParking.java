@@ -7,10 +7,10 @@ public class StreetParking extends Parking {
     private boolean spotDelimited;
 
     public StreetParking (Parking baseParking, boolean spotDelimited) {
-        super(baseParking.getLocation(),baseParking.isMetered(),baseParking.getMaximumAllowedDuration(),
+        super(baseParking.getCenter(),baseParking.getParkingArea(),baseParking.isMetered(),baseParking.getMaximumAllowedDuration(),
                 baseParking.getTotalSpotNumber(),baseParking.getAvailableSpotNumber(),baseParking.getExtraSpotNumber(),
                 baseParking.getPricePerMinute(), baseParking.getOpeningTime(),baseParking.getClosingTime(),
-                baseParking.getProbabilityOfSpotFinding(),baseParking.getParkingDisposition());
+                baseParking.getProbabilityOfSpotFinding(),baseParking.getAllowedVehicles(),baseParking.getParkingDisposition());
         this.spotDelimited = spotDelimited;
     }
 

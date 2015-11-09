@@ -12,29 +12,23 @@ import android.view.View;
 import android.widget.ArrayAdapter;
 import android.widget.AutoCompleteTextView;
 import android.widget.Button;
-import android.widget.TextView;
 import android.widget.Toast;
 import android.util.Log;
 
-import com.here.android.mpa.common.GeoBoundingBox;
 import com.here.android.mpa.common.GeoCoordinate;
-import com.here.android.mpa.common.MapEngine;
 import com.here.android.mpa.routing.RouteManager;
 import com.here.android.mpa.routing.RouteOptions;
 import com.here.android.mpa.routing.RoutePlan;
 import com.here.android.mpa.routing.RouteResult;
-import com.here.android.mpa.search.DiscoveryRequest;
-import com.here.android.mpa.search.DiscoveryResultPage;
 import com.here.android.mpa.search.ErrorCode;
 import com.here.android.mpa.search.GeocodeRequest;
 import com.here.android.mpa.search.ResultListener;
-import com.here.android.mpa.search.SearchRequest;
-import com.here.android.mpa.search.TextSuggestionRequest;
 import com.here.android.mpa.search.Location;
 
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.List;
+
+import fiware.smartparking.utils.SuggestionQueryJSONTask;
 
 /**
  * Created by jmcf on 23/10/15.
@@ -209,7 +203,10 @@ public class RouteActivity extends AppCompatActivity {
                     }
                 });*/
 
-                SuggestionQueryJSONTask task = new SuggestionQueryJSONTask(41.162142, -8.621953,s.toString(),pendingRequest,view,adapter,RouteActivity.this);
+                //Oporto-based suggestions
+                //SuggestionQueryJSONTask task = new SuggestionQueryJSONTask(41.162142, -8.621953,s.toString(),pendingRequest,view,adapter,RouteActivity.this);
+                //Aveiro-based suggestions
+                SuggestionQueryJSONTask task = new SuggestionQueryJSONTask(40.629793,-8.641633,s.toString(),pendingRequest,view,adapter,RouteActivity.this);
                 task.executeOnExecutor(AsyncTask.THREAD_POOL_EXECUTOR, (Void[]) null);
             }
             else if(prevText.length() >= 4 && s.length() < 4){
