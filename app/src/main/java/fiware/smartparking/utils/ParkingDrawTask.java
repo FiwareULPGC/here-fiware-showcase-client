@@ -105,7 +105,6 @@ public class ParkingDrawTask {
         for (int i=0;i<streetParkings.size();i++) {
             StreetParking streetParking = streetParkings.get(i);
             if (gbb.contains(streetParking.getCenter())){
-
                 MapLabeledMarker strParkingMarker = new MapLabeledMarker(streetParking.getCenter() );
                 strParkingMarker.setIcon(IconCategory.PARKING_AREA);
                 strParkingMarker.setLabelText(map.getMapDisplayLanguage(),

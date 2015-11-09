@@ -3,6 +3,7 @@ package fiware.smartparking.utils;
 import android.app.Activity;
 import android.content.Context;
 import android.content.Intent;
+import android.os.Build;
 import android.speech.tts.TextToSpeech;
 
 import com.here.android.mpa.common.GeoBoundingBox;
@@ -79,9 +80,9 @@ public class TextToSpeechUtils {
             tts.setLanguage(language);
     }
 
+    @SuppressWarnings("deprecation")
     public static void indicateParkingProximity(GeoCoordinate loc, float meters){
         if (tts == null) return;
-        //TODO: avoiding speak deprecated call.
         try {
             boolean parkingFound = false;
             for (int i=0;i<streetParkingList.size();i++) {
@@ -90,7 +91,10 @@ public class TextToSpeechUtils {
                     parkingFound = true;
                     if (lastStreetParking != i) {
                         lastStreetParking = i;
-                        tts.speak(retrieveParkingInstruction(streetParkingList.get(i), meters), TextToSpeech.QUEUE_FLUSH, null);
+                        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP)
+                            tts.speak(retrieveParkingInstruction(streetParkingList.get(i), meters), TextToSpeech.QUEUE_FLUSH, null, "MessageId");
+                        else
+                            tts.speak(retrieveParkingInstruction(streetParkingList.get(i), meters), TextToSpeech.QUEUE_FLUSH, null);
                     }
                 }
             }
@@ -102,7 +106,10 @@ public class TextToSpeechUtils {
                     parkingFound = true;
                     if (lastLotParking != i) {
                         lastLotParking = i;
-                        tts.speak(retrieveParkingInstruction(lotParkingList.get(i), meters), TextToSpeech.QUEUE_FLUSH, null);
+                        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP)
+                            tts.speak(retrieveParkingInstruction(lotParkingList.get(i), meters), TextToSpeech.QUEUE_FLUSH, null, "MessageId");
+                        else
+                            tts.speak(retrieveParkingInstruction(lotParkingList.get(i), meters), TextToSpeech.QUEUE_FLUSH, null);
                     }
                 }
             }
@@ -111,6 +118,7 @@ public class TextToSpeechUtils {
         catch (Exception E) {E.printStackTrace();}
     }
 
+    @SuppressWarnings("deprecation")
     public static void indicateManeuverProximity(Maneuver nextManeuver,
                                                  GeoCoordinate loc, float meters){
 
@@ -133,7 +141,12 @@ public class TextToSpeechUtils {
                             break;
                         }
                     }
-                    if (tts != null) tts.speak(instruction, TextToSpeech.QUEUE_FLUSH, null);
+                    if (tts != null){
+                        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP)
+                            tts.speak(instruction, TextToSpeech.QUEUE_FLUSH, null, "MessageId");
+                        else
+                            tts.speak(instruction, TextToSpeech.QUEUE_FLUSH, null);
+                    }
                 }
             }
        }

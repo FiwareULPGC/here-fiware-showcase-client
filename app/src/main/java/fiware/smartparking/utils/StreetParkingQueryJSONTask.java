@@ -7,18 +7,15 @@ import com.here.android.mpa.common.GeoBoundingBox;
 import com.here.android.mpa.common.GeoCoordinate;
 import com.here.android.mpa.common.GeoPolyline;
 
-import org.apache.http.HttpResponse;
-import org.apache.http.HttpStatus;
-import org.apache.http.client.HttpClient;
-import org.apache.http.client.methods.HttpPost;
-import org.apache.http.entity.StringEntity;
-import org.apache.http.impl.client.DefaultHttpClient;
-import org.apache.http.util.EntityUtils;
 import org.json.JSONArray;
 import org.json.JSONObject;
 
-import java.io.IOException;
-import java.io.UnsupportedEncodingException;
+import java.io.BufferedReader;
+import java.io.InputStream;
+import java.io.InputStreamReader;
+import java.io.OutputStream;
+import java.net.HttpURLConnection;
+import java.net.URL;
 import java.util.ArrayList;
 
 import fiware.smartparking.models.Parking;
@@ -30,8 +27,6 @@ import fiware.smartparking.models.StreetParking;
 public class StreetParkingQueryJSONTask extends AsyncTask<Void, Void, String>
 {
     public static String SERVER_ERROR = "Server Error";
-    public static String UNSUPPORTED_ERROR = "Unsupported exception Error";
-    public static String IO_ERROR = "IO Exception Error";
 
     public static String QUERY_TYPE_ERROR = "Found a non street parking element";
 
@@ -48,62 +43,54 @@ public class StreetParkingQueryJSONTask extends AsyncTask<Void, Void, String>
 
     }
 
-    protected String doInBackground(Void... paramss) {
+    protected String doInBackground (Void... paramss){
         try {
-            HttpClient httpClient =  new DefaultHttpClient();
+            String urlBuilder = "http://fiware-aveiro.citibrain.com:1026/v1/queryContext/";
 
-            StringBuilder urlBuilder = new StringBuilder();
+            URL url = new URL(urlBuilder);
+            HttpURLConnection conn = (HttpURLConnection) url.openConnection();
+            conn.setDoOutput(true);
+            conn.setRequestMethod("POST");
+            conn.setRequestProperty("Content-Type", "application/json");
+            conn.setRequestProperty("Accept","application/json");
 
-            urlBuilder.append("http://fiware-aveiro.citibrain.com:1026/v1/queryContext/");
-
-            HttpPost request = new HttpPost(urlBuilder.toString());
-            request.setHeader("Accept","application/json");
-            request.setHeader("Content-Type","application/json");
-            //TODO: filter by location
-            //TODO: pagination
-            //TODO: using non deprecated entities
+            //TODO: filter by location, pagination
             String requestBody = "{\"entities\": [{ \"type\" : \"StreetParking\",\"isPattern\": \"true\",\"id\": \".*\"}]}";
-            try {
-                JSONObject object = new JSONObject(requestBody);
-                request.setEntity(new StringEntity(object.toString(), "UTF8"));
-            }
-            catch (Exception E){
-                request.setEntity(new StringEntity("","UTF8"));
-            }
-            HttpResponse response = httpClient.execute(request);
 
-            final int statusCode = response.getStatusLine().getStatusCode();
-            final String jsonResponse = EntityUtils.toString(response.getEntity());
+            byte[] outputInBytes = requestBody.getBytes("UTF-8");
+            OutputStream os = conn.getOutputStream();
+            os.write(outputInBytes);
+            os.close();
 
-            if (statusCode != HttpStatus.SC_OK) {
-                return SERVER_ERROR;
-            } else {
-                return jsonResponse;
-            }
-        } catch (UnsupportedEncodingException ex) {
-            ex.printStackTrace();
-            return UNSUPPORTED_ERROR;
-        } catch (IOException ex) {
-            ex.printStackTrace();
-            return IO_ERROR;
+            InputStream is = conn.getInputStream();
+            BufferedReader streamReader = new BufferedReader(new InputStreamReader(is, "UTF-8"));
+            StringBuilder responseStrBuilder = new StringBuilder();
+
+            String inputStr;
+            while ((inputStr = streamReader.readLine()) != null)
+                responseStrBuilder.append(inputStr);
+
+            conn.disconnect();
+
+            return responseStrBuilder.toString();
         }
+        catch (Exception e) { e.printStackTrace(); return SERVER_ERROR; }
     }
 
     @Override
     protected void onPostExecute(String jsonResponse) {
-        if ( jsonResponse == SERVER_ERROR || jsonResponse == UNSUPPORTED_ERROR || jsonResponse == IO_ERROR) {
+        if (jsonResponse.contentEquals(SERVER_ERROR)) { // || jsonResponse == UNSUPPORTED_ERROR || jsonResponse == IO_ERROR) {
             Log.e("StrParkingQueryJSONTask", jsonResponse);
             return;
         }
         try {
             JSONObject queryResponse = new JSONObject(jsonResponse);
-            ArrayList<StreetParking> parkingList = new ArrayList<StreetParking>();
+            ArrayList<StreetParking> parkingList = new ArrayList<>();
             JSONArray contextResponses = queryResponse.getJSONArray("contextResponses");
             for (int i=0; i<contextResponses.length();i++){
                 JSONObject contextElement = contextResponses.getJSONObject(i).getJSONObject("contextElement");
                 parkingList.add(parseStreetElement(contextElement));
             }
-
             TextToSpeechUtils.setStreetParkingList(parkingList);
             drawTask.drawStreetParkings(gbb,parkingList);
         }
@@ -211,7 +198,8 @@ public class StreetParkingQueryJSONTask extends AsyncTask<Void, Void, String>
         try {
             String value = element.getString("value");
             String[] parts = value.split(",");
-            return new GeoCoordinate(Double.parseDouble(parts[1]),Double.parseDouble(parts[0]));
+            //return new GeoCoordinate(Double.parseDouble(parts[1]),Double.parseDouble(parts[0]));
+            return new GeoCoordinate(Double.parseDouble(parts[0]),Double.parseDouble(parts[1]));
         }
         catch (Exception e){
             e.printStackTrace();
