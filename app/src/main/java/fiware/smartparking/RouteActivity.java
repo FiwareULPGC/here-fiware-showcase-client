@@ -16,6 +16,7 @@ import android.widget.Toast;
 import android.util.Log;
 
 import com.here.android.mpa.common.GeoCoordinate;
+import com.here.android.mpa.common.MapEngine;
 import com.here.android.mpa.routing.RouteManager;
 import com.here.android.mpa.routing.RouteOptions;
 import com.here.android.mpa.routing.RoutePlan;
@@ -24,6 +25,7 @@ import com.here.android.mpa.search.ErrorCode;
 import com.here.android.mpa.search.GeocodeRequest;
 import com.here.android.mpa.search.ResultListener;
 import com.here.android.mpa.search.Location;
+import com.here.android.mpa.search.TextSuggestionRequest;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -92,6 +94,8 @@ public class RouteActivity extends AppCompatActivity {
                             Intent intent = new Intent(getApplicationContext(),
                                                                                 MainActivity.class);
                             startActivity(intent);
+                            RouteActivity.this.onBackPressed();
+                            return;
                         }
                     }
 
@@ -110,7 +114,8 @@ public class RouteActivity extends AppCompatActivity {
                                                                 "We are calculating a route", true);
 
         GeocodeRequest req1 = new GeocodeRequest(origin.getText().toString());
-        req1.setSearchArea(new GeoCoordinate(41.162142, -8.621953), 10000);
+        //req1.setSearchArea(new GeoCoordinate(41.162142, -8.621953), 10000);
+        req1.setSearchArea(new GeoCoordinate(40.637296, -8.635791), 10000);
         req1.execute(new ResultListener<List<Location>>() {
             public void onCompleted(List<Location> data, ErrorCode error) {
                 if(error == ErrorCode.NONE) {
@@ -118,7 +123,8 @@ public class RouteActivity extends AppCompatActivity {
                         final GeoCoordinate geoOrigin = data.get(0).getCoordinate();
 
                         GeocodeRequest req2 = new GeocodeRequest(destination.getText().toString());
-                        req2.setSearchArea(new GeoCoordinate(41.162142, -8.621953), 10000);
+                        //req2.setSearchArea(new GeoCoordinate(41.162142, -8.621953), 10000);
+                        req2.setSearchArea(new GeoCoordinate(40.637296, -8.635791), 10000);
                         req2.execute(new ResultListener<List<Location>>() {
                             public void onCompleted(List<Location> data, ErrorCode error) {
                                 if (error == ErrorCode.NONE) {
@@ -183,7 +189,7 @@ public class RouteActivity extends AppCompatActivity {
                     (s.length() >=4 && s.toString().indexOf(prevText.toString()) == -1 &&
                             prevText.toString().indexOf(s.toString()) == -1)) {
 
-              /*TextSuggestionRequest req = new TextSuggestionRequest(s.toString()).setSearchCenter(new GeoCoordinate(41.162142, -8.621953));
+             /*TextSuggestionRequest req = new TextSuggestionRequest(s.toString()).setSearchCenter(new GeoCoordinate(40.629793, -8.641633));//(41.162142, -8.621953));
                 pendingRequest = true;
 
                req.execute(new ResultListener<List<String>>() {
@@ -203,10 +209,12 @@ public class RouteActivity extends AppCompatActivity {
                     }
                 });*/
 
+
                 //Oporto-based suggestions
                 //SuggestionQueryJSONTask task = new SuggestionQueryJSONTask(41.162142, -8.621953,s.toString(),pendingRequest,view,adapter,RouteActivity.this);
                 //Aveiro-based suggestions
-                SuggestionQueryJSONTask task = new SuggestionQueryJSONTask(40.629793,-8.641633,s.toString(),pendingRequest,view,adapter,RouteActivity.this);
+                //40.629793,-8.641633
+                SuggestionQueryJSONTask task = new SuggestionQueryJSONTask(40.637296, -8.635791,s.toString(),pendingRequest,view,adapter,RouteActivity.this);
                 task.executeOnExecutor(AsyncTask.THREAD_POOL_EXECUTOR, (Void[]) null);
             }
             else if(prevText.length() >= 4 && s.length() < 4){

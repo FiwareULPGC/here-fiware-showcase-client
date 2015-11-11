@@ -2,16 +2,16 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android"
     package="fiware.smartparking" >
 
-    <uses-permission android:name="android.permission.INTERNET" />
-    <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION" />
-    <uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION" />
-    <uses-permission android:name="android.permission.READ_EXTERNAL_STORAGE" />
-    <uses-permission android:name="android.permission.WRITE_EXTERNAL_STORAGE" />
-    <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
-    <uses-permission android:name="android.permission.CHANGE_NETWORK_STATE" />
-    <uses-permission android:name="android.permission.ACCESS_WIFI_STATE" />
+    <uses-permission android:name="android.permission.INTERNET"/>
+    <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION"/>
+    <uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION"/>
+    <uses-permission android:name="android.permission.READ_EXTERNAL_STORAGE"/>
+    <uses-permission android:name="android.permission.WRITE_EXTERNAL_STORAGE"/>
+    <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE"/>
+    <uses-permission android:name="android.permission.CHANGE_NETWORK_STATE"/>
+    <uses-permission android:name="android.permission.ACCESS_WIFI_STATE"/>
 
-    <uses-permission android:name="android.permission.VIBRATE" />
+    <uses-permission android:name="android.permission.VIBRATE"/>
 
     <uses-sdk
     android:minSdkVersion="11"
@@ -57,17 +57,6 @@
                 </action>
             </intent-filter>
         </service>
-        <!-- Personal App credentials -->
-        <!--<meta-data
-            android:name="com.here.android.maps.appid"
-            android:value="HexuE9xFQGUHiXRH16Cl" />
-        <meta-data
-            android:name="com.here.android.maps.apptoken"
-            android:value="a9l0wILKXfEoL-1AWd2Ovw" />
-        <meta-data
-            android:name="com.here.android.maps.license.key"
-            android:value="EqauPFJ3kbPDTF1uLURGz9iZsJQ/G6Yg7i+l+HRXrxdG9JdUGnyK8FYFcKjBMZmOV6PyZHwtm4IVUDlHxrnhNeTDParjpQ+infLxUk4P2orL0kt9/1JDopiscddzIZ0voeawmyRVt8vpC/gSaPSQwb9TxmtpgWY6YA6eYA7Ofwi49bmuTBP7duZr3IMFYXNBN3JQ4tVT/RRMLmjtaXcMxnd5qHMb3izbe1CfFbwz9FvuF08LSgroKoEY+eGzJ0OYgj0T5Qr9fIY1LlXlstNI2nmR6UpmNYmeQMz5pc8rFB5Hi1pi05fb55NsHNh3Zd6j9j3ZXSuujZzc887spnWv6XTdW26XqhsRX9DyEi8i6E3SLUO3y1FR9uxc5nN0Ic7GE6lsx9Ln9vUfdXME2DJTkv9VpQJ2V2OotH+Rpu9/knM1AtB32W4lt8ROffdDb2ErF174qH7rO+in/nbaV8ezdnEay22vo+L+L+WDa/JIUrIf+jNSmTtvv4HiCW3NEN0AEC5Nu+7GOrf6s++ExWX99bFFj9/ItDtSdX/v+DKOw7OqE386/n3KtlLvuPNrei9lJ0gy6AUl+Aj3Ii1lMrVJAfx7uXJ8EfRnoWQJxrLGC0dV0Pvi8/4EtjuEzaqRVlUZElPc9Az6K+9r08Fq3V5L1VSVCgYcz8W0AT/KF+grG8A="
-            />-->
         <!-- Fiware App credentials -->
         <meta-data
             android:name="com.here.android.maps.appid"

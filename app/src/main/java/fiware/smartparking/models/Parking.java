@@ -1,6 +1,7 @@
 package fiware.smartparking.models;
 
 import com.here.android.mpa.common.GeoCoordinate;
+import com.here.android.mpa.common.GeoPolygon;
 import com.here.android.mpa.common.GeoPolyline;
 
 import java.util.ArrayList;
@@ -20,7 +21,7 @@ public class Parking {
 
 
     private GeoCoordinate center;
-    private ArrayList<GeoPolyline> location;
+    private ArrayList<GeoPolygon> location;
     private boolean metered;
     private int maximumAllowedDuration; //minutes
     private int totalSpotNumber;
@@ -34,7 +35,7 @@ public class Parking {
     private float probabilityOfSpotFinding;
     private ParkingDisposition parkingDisposition;
 
-    public Parking(GeoCoordinate center, ArrayList<GeoPolyline> location, boolean metered, int maximumAllowedDuration, int totalSpotNumber,
+    public Parking(GeoCoordinate center, ArrayList<GeoPolygon> location, boolean metered, int maximumAllowedDuration, int totalSpotNumber,
                    int availableSpotNumber,int extraSpotNumber, float pricePerMinute, String openingTime,
                    String closingTime, float probabilityOfSpotFinding, ArrayList<VehicleType> allowedVehicles, ParkingDisposition disposition) {
 
@@ -57,9 +58,9 @@ public class Parking {
     public GeoCoordinate getCenter () { return this.center; }
 
 
-    public GeoPolyline getParkingAreaPolylineAt (int index) { return this.location.get(index); }
-    public int getParkingPolylines() {return this.location.size();}
-    public ArrayList<GeoPolyline> getParkingArea() {return this.location;}
+    public GeoPolygon getParkingAreaPolygonAt (int index) { return this.location.get(index); }
+    public int getParkingPolygons() {return this.location.size();}
+    public ArrayList<GeoPolygon> getParkingArea() {return this.location;}
 
     public int getMaximumAllowedDuration() { return maximumAllowedDuration;}
     public int getTotalSpotNumber() { return totalSpotNumber; }
@@ -77,7 +78,7 @@ public class Parking {
     public ArrayList<VehicleType> getAllowedVehicles() { return allowedVehicles;}
 
     public void clearLocations() {this.location.clear();}
-    public void addPolyline(GeoPolyline location) {this.location.add(location);}
+    public void addPolygon(GeoPolygon location) {this.location.add(location);}
 
     public void setMaximumAllowedDuration(int maximumAllowedDuration) {
         this.maximumAllowedDuration = maximumAllowedDuration;

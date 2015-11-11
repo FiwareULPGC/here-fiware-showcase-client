@@ -35,6 +35,8 @@ public class SuggestionQueryJSONTask extends AsyncTask<Void, Void, String> {
     private ArrayAdapter<String> adapter;
 
     public static String SERVER_ERROR = "Server Error";
+    private static String NO_RESULTS_FOUND = "No results found";
+    private static String TAG = "SuggestionQueryError";
 
     public SuggestionQueryJSONTask(double lat, double lon, String query, Boolean pendingRequest,
                             AutoCompleteTextView view, ArrayAdapter<String> adapter, Context activityContext) {
@@ -92,7 +94,7 @@ public class SuggestionQueryJSONTask extends AsyncTask<Void, Void, String> {
     @Override
     protected void onPostExecute(String jsonResponse) {
         if ( jsonResponse.contentEquals(SERVER_ERROR)){
-            Log.e("SuggestionQueryError",jsonResponse);
+            Log.e(TAG,jsonResponse);
             return;
         }
         try {
@@ -104,10 +106,13 @@ public class SuggestionQueryJSONTask extends AsyncTask<Void, Void, String> {
                 stringList[i] = suggestions.getString(i);
             }
             pendingRequest = false;
-            adapter = new ArrayAdapter<>(ctx,
-                    android.R.layout.simple_dropdown_item_1line, stringList);
-            view.setAdapter(adapter);
-            adapter.notifyDataSetChanged();
+            //if (limit > 0) {
+                adapter = new ArrayAdapter<>(ctx,
+                        android.R.layout.simple_dropdown_item_1line, stringList);
+                view.setAdapter(adapter);
+                adapter.notifyDataSetChanged();
+            //}
+            //else Log.e (TAG,NO_RESULTS_FOUND);
         }
         catch (Exception E){E.printStackTrace();}
     }

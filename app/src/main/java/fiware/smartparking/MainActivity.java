@@ -2,10 +2,12 @@ package fiware.smartparking;
 
 import android.app.Activity;
 import android.content.Intent;
+import android.graphics.Color;
 import android.graphics.PointF;
 import android.os.AsyncTask;
 import android.os.Bundle;
 import android.speech.tts.TextToSpeech;
+import android.util.Log;
 import android.view.View;
 import android.widget.Button;
 import android.widget.TextView;
@@ -15,6 +17,8 @@ import com.here.android.mpa.common.GeoBoundingBox;
 import com.here.android.mpa.common.GeoCoordinate;
 import com.here.android.mpa.common.GeoPosition;
 import com.here.android.mpa.common.Image;
+import com.here.android.mpa.common.MapActivity;
+import com.here.android.mpa.common.MapEngine;
 import com.here.android.mpa.common.OnEngineInitListener;
 import com.here.android.mpa.common.PositioningManager;
 import com.here.android.mpa.common.ViewObject;
@@ -25,6 +29,7 @@ import com.here.android.mpa.mapping.MapGesture;
 import com.here.android.mpa.mapping.MapMarker;
 import com.here.android.mpa.mapping.MapObject;
 import com.here.android.mpa.mapping.MapRoute;
+import com.here.android.mpa.odml.MapLoader;
 import com.here.android.mpa.routing.Maneuver;
 import com.here.android.mpa.routing.Route;
 import com.here.android.mpa.search.ErrorCode;
@@ -43,13 +48,14 @@ import java.util.Locale;
 import java.util.TimeZone;
 
 import fiware.smartparking.models.ParkingLot;
+import fiware.smartparking.utils.MapChangeListener;
 import fiware.smartparking.utils.ParkingDrawTask;
 import fiware.smartparking.utils.StreetParkingQueryJSONTask;
 import fiware.smartparking.utils.TextToSpeechUtils;
 
 import android.speech.tts.TextToSpeech.OnInitListener;
 
-public class MainActivity extends Activity implements OnInitListener {
+public class MainActivity extends MapActivity implements OnInitListener {
     // map embedded in the map fragment
     private Map map = null;
     // map fragment embedded in this activity
@@ -172,6 +178,7 @@ public class MainActivity extends Activity implements OnInitListener {
         }
     };
 
+    private MapChangeListener changeListener = null;
 
     @Override
     public void onCreate(Bundle savedInstanceState) {
@@ -192,6 +199,18 @@ public class MainActivity extends Activity implements OnInitListener {
                 getDirections(null);
             }
         });
+
+        //At work: Changing interface to use ETA cell also as Parking service consumer activator
+        //ETA.setClickable(true);
+        //ETA.setOnClickListener(new View.OnClickListener() {
+            //@Override
+            //public void onClick(View v) {
+                //if (changeListener != null)
+                    //changeListener.setParkingOverlayActive(!changeListener.isParkingOverlayActive());
+            //}
+        //});
+
+
         //Adding a TTS check intent
         TextToSpeechUtils.checkTTSIntent(this);
 
@@ -205,11 +224,15 @@ public class MainActivity extends Activity implements OnInitListener {
                     mapFragment.getMapGesture().addOnGestureListener(gestureListener);
                     // retrieve a reference of the map from the map fragment
                     map = mapFragment.getMap();
-
                     // Oporto downtown
                     //DEFAULT_COORDS = new GeoCoordinate(41.162142, -8.621953);
                     // Aveiro, Portugal
-                    DEFAULT_COORDS = new GeoCoordinate(40.629793, -8.641633);
+                   // DEFAULT_COORDS = new GeoCoordinate(40.629793, -8.641633);
+                    DEFAULT_COORDS = new GeoCoordinate(40.637296, -8.635791);
+
+                    //At work
+                    //changeListener = new MapChangeListener(map,false);
+                    //map.addTransformListener(changeListener);
 
                     goTo(mapFragment.getMap(), DEFAULT_COORDS, Map.Animation.NONE);
 
@@ -373,10 +396,11 @@ public class MainActivity extends Activity implements OnInitListener {
             System.err.println("Cannot load image");
         }
         endMarker = new MapMarker(end, endImg);
-        endMarker.setAnchorPoint(new PointF(endImg.getWidth()/2,endImg.getHeight()));
+        endMarker.setAnchorPoint(new PointF(endImg.getWidth() / 2, endImg.getHeight()));
         map.addMapObject(endMarker);
 
         MapRoute mapRoute = new MapRoute(targetRoute);
+        mapRoute.setColor(Color.parseColor("#FF00A835"));//Color.GREEN);
         map.addMapObject(mapRoute);
         startGuidance(targetRoute);
     }
@@ -393,7 +417,6 @@ public class MainActivity extends Activity implements OnInitListener {
 
     ParkingDrawTask parkingDrawTask = null;
 
-    GeoCoordinate lastManeuverCoordinate = null;
     private void updateNavigationInfo(final GeoPosition loc) {
         Maneuver nextManeuver = navMan.getNextManeuver();
 
@@ -422,11 +445,11 @@ public class MainActivity extends Activity implements OnInitListener {
         if (gbb.contains(loc.getCoordinate())) {
             navMan.setMapUpdateMode(NavigationManager.MapUpdateMode.NONE);
             map.setCenter(loc.getCoordinate(), Map.Animation.NONE);
-            map.setZoomLevel(map.getMaxZoomLevel() - 3);
+            map.setZoomLevel(map.getMaxZoomLevel() - 1);
             if (parkingDrawTask == null) {
                 parkingDrawTask = new ParkingDrawTask(map);
                 StreetParkingQueryJSONTask strParkingQuery =
-                        new StreetParkingQueryJSONTask(parkingDrawTask, gbb);
+                        new StreetParkingQueryJSONTask(parkingDrawTask, new GeoBoundingBox(targetRoute.getDestination(), 510, 510));
                 strParkingQuery.executeOnExecutor(AsyncTask.THREAD_POOL_EXECUTOR, (Void[]) null);
                 ArrayList<ParkingLot> mock = ParkingDrawTask.getMockLotParkingList() ;
                 parkingDrawTask.drawParkingLots(gbb,mock);

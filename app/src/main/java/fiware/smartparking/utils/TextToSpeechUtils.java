@@ -124,7 +124,13 @@ public class TextToSpeechUtils {
 
         if (tts == null) return;
         try {
-            GeoBoundingBox maneuverGbb = new GeoBoundingBox(nextManeuver.getCoordinate(),meters*2,meters*2);
+            //End should be warned in the end.
+            GeoBoundingBox maneuverGbb;
+            if (nextManeuver.getAction() == Maneuver.Action.END)
+                maneuverGbb = new GeoBoundingBox(nextManeuver.getCoordinate(),20,20);
+            else
+                maneuverGbb = new GeoBoundingBox(nextManeuver.getCoordinate(),meters*2,meters*2);
+
             if (maneuverGbb.contains(loc)) {
                 if (followManeuver) {
 
@@ -198,9 +204,9 @@ public class TextToSpeechUtils {
 
     private static String retrieveParkingInstruction (Parking parking, float meters){
         if (parking.getAvailableSpotNumber() == 0) return "";
-        String sb = "You can find a parking with ";
+        String sb = "Parking with ";
         sb = sb.concat(Integer.toString(parking.getAvailableSpotNumber()));
-        sb = sb.concat(" spots within ");
+        sb = sb.concat(" free spots within ");
         sb = sb.concat(Integer.toString((int)meters));
         sb = sb.concat(" meters");
         return sb;

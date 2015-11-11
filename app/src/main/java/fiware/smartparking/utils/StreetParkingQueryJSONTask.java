@@ -5,7 +5,7 @@ import android.util.Log;
 
 import com.here.android.mpa.common.GeoBoundingBox;
 import com.here.android.mpa.common.GeoCoordinate;
-import com.here.android.mpa.common.GeoPolyline;
+import com.here.android.mpa.common.GeoPolygon;
 
 import org.json.JSONArray;
 import org.json.JSONObject;
@@ -26,15 +26,22 @@ import fiware.smartparking.models.StreetParking;
  */
 public class StreetParkingQueryJSONTask extends AsyncTask<Void, Void, String>
 {
+    public static String TAG = "StrParkingQueryJSONTask";
     public static String SERVER_ERROR = "Server Error";
-
     public static String QUERY_TYPE_ERROR = "Found a non street parking element";
+    public static String QUERY_NO_VALUE_ERROR = "0 street parkings are found";
 
-    private ParkingDrawTask drawTask;
+    private ParkingDrawTask drawTask = null;
+    private MapChangeListener changeListener = null;
     private GeoBoundingBox gbb;
 
     public StreetParkingQueryJSONTask (ParkingDrawTask drawTask, GeoBoundingBox gbb){
         this.drawTask = drawTask;
+        this.gbb = gbb;
+    }
+
+    public StreetParkingQueryJSONTask (MapChangeListener changeListener, GeoBoundingBox gbb){
+        this.changeListener = changeListener;
         this.gbb = gbb;
     }
 
@@ -54,10 +61,7 @@ public class StreetParkingQueryJSONTask extends AsyncTask<Void, Void, String>
             conn.setRequestProperty("Content-Type", "application/json");
             conn.setRequestProperty("Accept","application/json");
 
-            //TODO: filter by location, pagination
-            String requestBody = "{\"entities\": [{ \"type\" : \"StreetParking\",\"isPattern\": \"true\",\"id\": \".*\"}]}";
-
-            byte[] outputInBytes = requestBody.getBytes("UTF-8");
+            byte[] outputInBytes = getRequestBody().getBytes("UTF-8");
             OutputStream os = conn.getOutputStream();
             os.write(outputInBytes);
             os.close();
@@ -79,8 +83,8 @@ public class StreetParkingQueryJSONTask extends AsyncTask<Void, Void, String>
 
     @Override
     protected void onPostExecute(String jsonResponse) {
-        if (jsonResponse.contentEquals(SERVER_ERROR)) { // || jsonResponse == UNSUPPORTED_ERROR || jsonResponse == IO_ERROR) {
-            Log.e("StrParkingQueryJSONTask", jsonResponse);
+        if (jsonResponse.contentEquals(SERVER_ERROR)) {
+            Log.e(TAG, jsonResponse);
             return;
         }
         try {
@@ -91,11 +95,17 @@ public class StreetParkingQueryJSONTask extends AsyncTask<Void, Void, String>
                 JSONObject contextElement = contextResponses.getJSONObject(i).getJSONObject("contextElement");
                 parkingList.add(parseStreetElement(contextElement));
             }
-            TextToSpeechUtils.setStreetParkingList(parkingList);
-            drawTask.drawStreetParkings(gbb,parkingList);
+            if (drawTask != null) {
+                TextToSpeechUtils.setStreetParkingList(parkingList);
+                drawTask.drawStreetParkings(gbb, parkingList);
+            }
+            if (changeListener != null){
+                changeListener.resetOverlays();
+                changeListener.drawStreetParkings(gbb, parkingList);
+            }
         }
         catch (Exception E){
-            E.printStackTrace();
+            Log.e(TAG,QUERY_NO_VALUE_ERROR);
         }
     }
 
@@ -104,7 +114,7 @@ public class StreetParkingQueryJSONTask extends AsyncTask<Void, Void, String>
     private StreetParking parseStreetElement(JSONObject ctxElement){
         try {
             if (!ctxElement.getString("type").contentEquals("StreetParking")) {
-                Log.e("QUERY ELEMENT ERROR", QUERY_TYPE_ERROR);
+                Log.e(TAG, QUERY_TYPE_ERROR);
                 return null;
             }
 
@@ -112,7 +122,7 @@ public class StreetParkingQueryJSONTask extends AsyncTask<Void, Void, String>
 
             //Street parking properties to retrieve
             GeoCoordinate centerCoords = null;
-            ArrayList<GeoPolyline> location = null;
+            ArrayList<GeoPolygon> location = null;
             ArrayList<Parking.VehicleType> allowedVehicles = null;
             int availableSpotNumber = 0, totalSpotNumber = 0, extraSpotNumber = 0, maximumAllowedDuration = 0;
             boolean isMetered = false, spotDelimited = false;
@@ -207,24 +217,49 @@ public class StreetParkingQueryJSONTask extends AsyncTask<Void, Void, String>
         }
     }
 
-    private ArrayList<GeoPolyline> retrieveParkingArea(JSONObject element){
-        ArrayList<GeoPolyline> parkingArea = new ArrayList<>();
+    private ArrayList<GeoPolygon> retrieveParkingArea(JSONObject element){
+        ArrayList<GeoPolygon> parkingArea = new ArrayList<>();
         try {
             JSONArray multipolygonData = element.getJSONArray("value");
             for (int i=0; i< multipolygonData.length(); i++){
                 ArrayList<GeoCoordinate> line = new ArrayList<>();
                 JSONArray lineData = multipolygonData.getJSONArray(i).getJSONArray(0);
-                for (int j=0; j<lineData.length(); j++){
+                for (int j=0; j<lineData.length()-1; j++){
                     line.add(new GeoCoordinate(
                             lineData.getJSONArray(j).getDouble(0),
                             lineData.getJSONArray(j).getDouble(1)
                     ));
                 }
-                parkingArea.add(new GeoPolyline(line));
+                parkingArea.add(new GeoPolygon(line));
             }
         }
         catch (Exception e) { e.printStackTrace(); }
         return parkingArea;
+    }
+
+    private String getRequestBody(){
+        GeoCoordinate corner1 = new GeoCoordinate(gbb.getTopLeft().getLatitude(), gbb.getBottomRight().getLongitude());
+        GeoCoordinate corner2 = new GeoCoordinate(gbb.getBottomRight().getLatitude(),gbb.getTopLeft().getLongitude());
+        //TODO: pagination
+
+        String rqBody = "{\"entities\": [{ \"type\" : \"StreetParking\",\"isPattern\": \"true\",\"id\": \".*\"}],";
+        rqBody = rqBody.concat("\"restriction\" : {\"scopes\" : [{\"type\":\"FIWARE::Location\"," );
+        rqBody = rqBody.concat("\"value\":{\"polygon\" : { \"vertices\" : [");
+
+        rqBody = rqBody.concat("{\"latitude\":\"").concat(Double.toString(gbb.getTopLeft().getLatitude()));
+        rqBody = rqBody.concat("\",\"longitude\":\"").concat(Double.toString(gbb.getTopLeft().getLongitude()));
+        rqBody = rqBody.concat("\"},");
+        rqBody = rqBody.concat("{\"latitude\":\"").concat(Double.toString(corner1.getLatitude()));
+        rqBody = rqBody.concat("\",\"longitude\":\"").concat(Double.toString(corner1.getLongitude()));
+        rqBody = rqBody.concat("\"},");
+        rqBody = rqBody.concat("{\"latitude\":\"").concat(Double.toString(gbb.getBottomRight().getLatitude()));
+        rqBody = rqBody.concat("\",\"longitude\":\"").concat(Double.toString(gbb.getBottomRight().getLongitude()));
+        rqBody = rqBody.concat("\"},");
+        rqBody = rqBody.concat("{\"latitude\":\"").concat(Double.toString(corner2.getLatitude()));
+        rqBody = rqBody.concat("\",\"longitude\":\"").concat(Double.toString(corner2.getLongitude()));
+        rqBody = rqBody.concat("\"}]}}}]}}");
+
+        return rqBody;
     }
 }
 
