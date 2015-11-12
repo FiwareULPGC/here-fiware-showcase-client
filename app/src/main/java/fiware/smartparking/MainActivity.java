@@ -1,10 +1,8 @@
 package fiware.smartparking;
 
-import android.app.Activity;
 import android.content.Intent;
 import android.graphics.Color;
 import android.graphics.PointF;
-import android.os.AsyncTask;
 import android.os.Bundle;
 import android.speech.tts.TextToSpeech;
 import android.util.Log;
@@ -18,7 +16,6 @@ import com.here.android.mpa.common.GeoCoordinate;
 import com.here.android.mpa.common.GeoPosition;
 import com.here.android.mpa.common.Image;
 import com.here.android.mpa.common.MapActivity;
-import com.here.android.mpa.common.MapEngine;
 import com.here.android.mpa.common.OnEngineInitListener;
 import com.here.android.mpa.common.PositioningManager;
 import com.here.android.mpa.common.ViewObject;
@@ -29,7 +26,6 @@ import com.here.android.mpa.mapping.MapGesture;
 import com.here.android.mpa.mapping.MapMarker;
 import com.here.android.mpa.mapping.MapObject;
 import com.here.android.mpa.mapping.MapRoute;
-import com.here.android.mpa.odml.MapLoader;
 import com.here.android.mpa.routing.Maneuver;
 import com.here.android.mpa.routing.Route;
 import com.here.android.mpa.search.ErrorCode;
@@ -39,7 +35,6 @@ import com.here.android.mpa.search.TextSuggestionRequest;
 import java.io.IOException;
 import java.lang.ref.WeakReference;
 import java.text.SimpleDateFormat;
-import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Date;
 import java.util.EnumSet;
@@ -48,9 +43,9 @@ import java.util.Locale;
 import java.util.TimeZone;
 
 import fiware.smartparking.models.ParkingLot;
+import fiware.smartparking.models.StreetParking;
+import fiware.smartparking.utils.DialogUtils;
 import fiware.smartparking.utils.MapChangeListener;
-import fiware.smartparking.utils.ParkingDrawTask;
-import fiware.smartparking.utils.StreetParkingQueryJSONTask;
 import fiware.smartparking.utils.TextToSpeechUtils;
 
 import android.speech.tts.TextToSpeech.OnInitListener;
@@ -72,7 +67,7 @@ public class MainActivity extends MapActivity implements OnInitListener {
 
     private static Route targetRoute;
 
-    private TextView nextRoad, currentSpeed, ETA;
+    private TextView nextRoad, currentSpeed, ETA, settings;
 
     public static void setRoute(Route aRoute) {
         targetRoute = aRoute;
@@ -124,6 +119,17 @@ public class MainActivity extends MapActivity implements OnInitListener {
 
         @Override
         public boolean onMapObjectsSelected(List<ViewObject> list) {
+            if (changeListener != null){
+                ParkingLot pLot = changeListener.parkingLotSelected(list);
+                StreetParking pStr = changeListener.streetParkingSelected(list);
+                if (pLot != null){
+                    DialogUtils.openPopupInfo(MainActivity.this,pLot);
+                }
+                else if (pStr != null){
+                    DialogUtils.openPopupInfo(MainActivity.this,pStr);
+                }
+
+            }
             return false;
         }
 
@@ -187,7 +193,7 @@ public class MainActivity extends MapActivity implements OnInitListener {
 
         nextRoad = (TextView)findViewById(R.id.nextRoad);
         currentSpeed = (TextView)findViewById(R.id.currentSpeed);
-        //distance = (TextView)findViewById(R.id.distance);
+        settings = (TextView)findViewById(R.id.settings);
         ETA = (TextView)findViewById(R.id.eta);
 
         //Changing interface to load direction activity on nextRoad onClick.
@@ -200,15 +206,13 @@ public class MainActivity extends MapActivity implements OnInitListener {
             }
         });
 
-        //At work: Changing interface to use ETA cell also as Parking service consumer activator
-        //ETA.setClickable(true);
-        //ETA.setOnClickListener(new View.OnClickListener() {
-            //@Override
-            //public void onClick(View v) {
-                //if (changeListener != null)
-                    //changeListener.setParkingOverlayActive(!changeListener.isParkingOverlayActive());
-            //}
-        //});
+        settings.setClickable(true);
+        settings.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View v) {
+                DialogUtils.openDialog(MainActivity.this, changeListener);
+            }
+        });
 
 
         //Adding a TTS check intent
@@ -221,6 +225,7 @@ public class MainActivity extends MapActivity implements OnInitListener {
             @Override
             public void onEngineInitializationCompleted(OnEngineInitListener.Error error) {
                 if (error == OnEngineInitListener.Error.NONE) {
+                    Log.e("Nokia maps", "init");
                     mapFragment.getMapGesture().addOnGestureListener(gestureListener);
                     // retrieve a reference of the map from the map fragment
                     map = mapFragment.getMap();
@@ -230,9 +235,9 @@ public class MainActivity extends MapActivity implements OnInitListener {
                    // DEFAULT_COORDS = new GeoCoordinate(40.629793, -8.641633);
                     DEFAULT_COORDS = new GeoCoordinate(40.637296, -8.635791);
 
-                    //At work
-                    //changeListener = new MapChangeListener(map,false);
-                    //map.addTransformListener(changeListener);
+                    if (changeListener == null)
+                        changeListener = new MapChangeListener(map,false);
+                    map.addTransformListener(changeListener);
 
                     goTo(mapFragment.getMap(), DEFAULT_COORDS, Map.Animation.NONE);
 
@@ -291,21 +296,19 @@ public class MainActivity extends MapActivity implements OnInitListener {
         super.onStop();
     }
 
-
-
     /**
      * Attaches listeners to navigation manager.
      */
     private void attachNavigationListeners() {
         if (navMan != null) {
             navMan.addPositionListener(
-                    new WeakReference<NavigationManager.PositionListener>(m_navigationPositionListener));
+                    new WeakReference<>(m_navigationPositionListener));
 
             navMan.addNavigationManagerEventListener(
-                    new WeakReference<NavigationManager.NavigationManagerEventListener>(m_navigationListener));
+                    new WeakReference<>(m_navigationListener));
 
             navMan.addNewInstructionEventListener(
-                    new WeakReference<NavigationManager.NewInstructionEventListener>(m_instructionListener));
+                    new WeakReference<>(m_instructionListener));
 
         }
     }
@@ -359,11 +362,6 @@ public class MainActivity extends MapActivity implements OnInitListener {
 
     private void doGetDirections() {
 
-        if (parkingDrawTask != null) {
-            parkingDrawTask.clearMarkers();
-            parkingDrawTask = null;
-        }
-
         hideWaypointerObjects();
 
         GeoCoordinate start = targetRoute.getStart();
@@ -400,8 +398,10 @@ public class MainActivity extends MapActivity implements OnInitListener {
         map.addMapObject(endMarker);
 
         MapRoute mapRoute = new MapRoute(targetRoute);
-        mapRoute.setColor(Color.parseColor("#FF00A835"));//Color.GREEN);
+        mapRoute.setColor(Color.parseColor("#FF00A835"));
         map.addMapObject(mapRoute);
+
+        changeListener.startedRouteTo(targetRoute.getDestination());
         startGuidance(targetRoute);
     }
 
@@ -415,7 +415,6 @@ public class MainActivity extends MapActivity implements OnInitListener {
         }
     };
 
-    ParkingDrawTask parkingDrawTask = null;
 
     private void updateNavigationInfo(final GeoPosition loc) {
         Maneuver nextManeuver = navMan.getNextManeuver();
@@ -426,7 +425,7 @@ public class MainActivity extends MapActivity implements OnInitListener {
 
         // Update the average speed
         int avgSpeed = (int) loc.getSpeed();
-        currentSpeed.setText("Speed: " + String.format("%d m/s", avgSpeed));
+        currentSpeed.setText(String.format("Speed: %d m/s", avgSpeed));
 
         // Update ETA
         SimpleDateFormat sdf = new SimpleDateFormat("k:mm", Locale.ENGLISH);
@@ -434,7 +433,8 @@ public class MainActivity extends MapActivity implements OnInitListener {
         //sdf.setTimeZone(TimeZone.getTimeZone("GMT+2"));
 
         Date ETADate = navMan.getEta(true, Route.TrafficPenaltyMode.DISABLED);
-        ETA.setText("ETA: " + sdf.format(ETADate));
+        String ETAPrint = "ETA: " + sdf.format(ETADate);
+        ETA.setText(ETAPrint);
 
 
         //Detecting maneuver proximity (+-50 mt)
@@ -446,15 +446,6 @@ public class MainActivity extends MapActivity implements OnInitListener {
             navMan.setMapUpdateMode(NavigationManager.MapUpdateMode.NONE);
             map.setCenter(loc.getCoordinate(), Map.Animation.NONE);
             map.setZoomLevel(map.getMaxZoomLevel() - 1);
-            if (parkingDrawTask == null) {
-                parkingDrawTask = new ParkingDrawTask(map);
-                StreetParkingQueryJSONTask strParkingQuery =
-                        new StreetParkingQueryJSONTask(parkingDrawTask, new GeoBoundingBox(targetRoute.getDestination(), 510, 510));
-                strParkingQuery.executeOnExecutor(AsyncTask.THREAD_POOL_EXECUTOR, (Void[]) null);
-                ArrayList<ParkingLot> mock = ParkingDrawTask.getMockLotParkingList() ;
-                parkingDrawTask.drawParkingLots(gbb,mock);
-                TextToSpeechUtils.setLotParkingList(mock);
-            }
             //Detecting parking proximity  (+-25 mt)
             TextToSpeechUtils.indicateParkingProximity(loc.getCoordinate(),25);
         }
@@ -468,11 +459,11 @@ public class MainActivity extends MapActivity implements OnInitListener {
             map.removeMapObjects(objectList);
 
             startMarker = endMarker = null;
-        }
 
-        if(route != null) {
-            map.removeMapObject(route);
-            route = null;
+            if(route != null) {
+                map.removeMapObject(route);
+                route = null;
+            }
         }
     }
 
@@ -493,6 +484,8 @@ public class MainActivity extends MapActivity implements OnInitListener {
             navMan.setMapUpdateMode(NavigationManager.MapUpdateMode.NONE);
             navMan.setTrafficAvoidanceMode(NavigationManager.TrafficAvoidanceMode.DISABLE);
             navMan.setMap(null);
+
+            changeListener.finishedRoute();
         }
 
         @Override

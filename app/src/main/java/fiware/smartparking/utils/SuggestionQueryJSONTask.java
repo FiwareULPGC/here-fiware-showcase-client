@@ -74,6 +74,7 @@ public class SuggestionQueryJSONTask extends AsyncTask<Void, Void, String> {
 
             URL url = new URL(urlBuilder);
             HttpURLConnection conn = (HttpURLConnection) url.openConnection();
+            conn.setConnectTimeout(500);
             conn.setRequestMethod("GET");
 
             InputStream is = conn.getInputStream();

@@ -34,10 +34,11 @@ public class Parking {
     private String closingTime; // ISO8601
     private float probabilityOfSpotFinding;
     private ParkingDisposition parkingDisposition;
+    private String lastUpdated;
 
     public Parking(GeoCoordinate center, ArrayList<GeoPolygon> location, boolean metered, int maximumAllowedDuration, int totalSpotNumber,
                    int availableSpotNumber,int extraSpotNumber, float pricePerMinute, String openingTime,
-                   String closingTime, float probabilityOfSpotFinding, ArrayList<VehicleType> allowedVehicles, ParkingDisposition disposition) {
+                   String closingTime, float probabilityOfSpotFinding, ArrayList<VehicleType> allowedVehicles, ParkingDisposition disposition, String lastUpdated) {
 
         this.center = center;
         this.location = location;
@@ -52,6 +53,7 @@ public class Parking {
         this.allowedVehicles = allowedVehicles;
         this.parkingDisposition = disposition;
         this.metered = metered;
+        this.lastUpdated = lastUpdated;
 
     }
 
@@ -100,5 +102,16 @@ public class Parking {
     public void setMetered (boolean metered) {this.metered = metered;}
     public void clearAllowedVehicles(){this.allowedVehicles.clear();}
     public void addAllowedVehicle(VehicleType vehicleType) {allowedVehicles.add(vehicleType);}
+
+    public String getAllowedVehiclesDescription(){
+        String res = "";
+        for (int i=0;i<this.getAllowedVehicles().size();i++){
+            res = res.concat(getAllowedVehicles().get(i).name());
+            if (i != getAllowedVehicles().size() - 1)
+                res = res.concat(" , ");
+        }
+        return res;
+    }
+    public String getLastUpdated() { return lastUpdated;}
 
 }

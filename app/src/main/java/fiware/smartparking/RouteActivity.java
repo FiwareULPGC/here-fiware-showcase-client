@@ -215,7 +215,7 @@ public class RouteActivity extends AppCompatActivity {
                 //Aveiro-based suggestions
                 //40.629793,-8.641633
                 SuggestionQueryJSONTask task = new SuggestionQueryJSONTask(40.637296, -8.635791,s.toString(),pendingRequest,view,adapter,RouteActivity.this);
-                task.executeOnExecutor(AsyncTask.THREAD_POOL_EXECUTOR, (Void[]) null);
+                task.executeOnExecutor(AsyncTask.SERIAL_EXECUTOR, (Void[]) null);
             }
             else if(prevText.length() >= 4 && s.length() < 4){
                 adapter = new ArrayAdapter<String>(RouteActivity.this,

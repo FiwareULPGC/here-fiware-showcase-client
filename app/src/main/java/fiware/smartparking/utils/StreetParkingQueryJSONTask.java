@@ -11,12 +11,18 @@ import org.json.JSONArray;
 import org.json.JSONObject;
 
 import java.io.BufferedReader;
-import java.io.InputStream;
+import java.io.BufferedWriter;
+import java.io.IOException;
 import java.io.InputStreamReader;
 import java.io.OutputStream;
+import java.io.OutputStreamWriter;
+import java.io.UnsupportedEncodingException;
 import java.net.HttpURLConnection;
 import java.net.URL;
+import java.text.DecimalFormat;
+import java.text.DecimalFormatSymbols;
 import java.util.ArrayList;
+import java.util.Locale;
 
 import fiware.smartparking.models.Parking;
 import fiware.smartparking.models.StreetParking;
@@ -24,61 +30,69 @@ import fiware.smartparking.models.StreetParking;
 /**
  * Created by Ulpgc on 07/11/2015.
  */
-public class StreetParkingQueryJSONTask extends AsyncTask<Void, Void, String>
-{
+public class StreetParkingQueryJSONTask extends AsyncTask<Void, Void, String> {
     public static String TAG = "StrParkingQueryJSONTask";
     public static String SERVER_ERROR = "Server Error";
     public static String QUERY_TYPE_ERROR = "Found a non street parking element";
     public static String QUERY_NO_VALUE_ERROR = "0 street parkings are found";
 
-    private ParkingDrawTask drawTask = null;
-    private MapChangeListener changeListener = null;
+    private ParkingDrawTask drawTask;
     private GeoBoundingBox gbb;
+    private boolean shouldAdvertOnError;
 
-    public StreetParkingQueryJSONTask (ParkingDrawTask drawTask, GeoBoundingBox gbb){
+    public StreetParkingQueryJSONTask(ParkingDrawTask drawTask, GeoBoundingBox gbb, boolean shouldAdvertOnError) {
         this.drawTask = drawTask;
         this.gbb = gbb;
-    }
-
-    public StreetParkingQueryJSONTask (MapChangeListener changeListener, GeoBoundingBox gbb){
-        this.changeListener = changeListener;
-        this.gbb = gbb;
+        this.shouldAdvertOnError = shouldAdvertOnError;
     }
 
     @Override
     protected void onPreExecute() {
-
     }
 
-    protected String doInBackground (Void... paramss){
+    protected String doInBackground(Void... paramss) {
+        String str = makeRequest("http://fiware-aveiro.citibrain.com:1026/v1/queryContext/", getRequestBody());
+        if (str == null) return SERVER_ERROR;
+        else return str;
+    }
+
+    public static String makeRequest(String uri, String data) {
+        HttpURLConnection urlConnection;
+        String url;
+        String result = null;
         try {
-            String urlBuilder = "http://fiware-aveiro.citibrain.com:1026/v1/queryContext/";
+            //Connect
+            urlConnection = (HttpURLConnection) ((new URL(uri).openConnection()));
+            urlConnection.setDoOutput(true);
+            urlConnection.setRequestProperty("Content-Type", "application/json");
+            urlConnection.setRequestProperty("Accept", "application/json");
+            urlConnection.setRequestMethod("POST");
+            urlConnection.connect();
 
-            URL url = new URL(urlBuilder);
-            HttpURLConnection conn = (HttpURLConnection) url.openConnection();
-            conn.setDoOutput(true);
-            conn.setRequestMethod("POST");
-            conn.setRequestProperty("Content-Type", "application/json");
-            conn.setRequestProperty("Accept","application/json");
+            //Write
+            OutputStream outputStream = urlConnection.getOutputStream();
+            BufferedWriter writer = new BufferedWriter(new OutputStreamWriter(outputStream, "UTF-8"));
+            writer.write(data);
+            writer.close();
+            outputStream.close();
 
-            byte[] outputInBytes = getRequestBody().getBytes("UTF-8");
-            OutputStream os = conn.getOutputStream();
-            os.write(outputInBytes);
-            os.close();
+            //Read
+            BufferedReader bufferedReader = new BufferedReader(new InputStreamReader(urlConnection.getInputStream(), "UTF-8"));
 
-            InputStream is = conn.getInputStream();
-            BufferedReader streamReader = new BufferedReader(new InputStreamReader(is, "UTF-8"));
-            StringBuilder responseStrBuilder = new StringBuilder();
+            String line = null;
+            StringBuilder sb = new StringBuilder();
 
-            String inputStr;
-            while ((inputStr = streamReader.readLine()) != null)
-                responseStrBuilder.append(inputStr);
+            while ((line = bufferedReader.readLine()) != null) {
+                sb.append(line);
+            }
 
-            conn.disconnect();
+            bufferedReader.close();
+            result = sb.toString();
 
-            return responseStrBuilder.toString();
+        } catch (Exception e) {
+            e.printStackTrace();
         }
-        catch (Exception e) { e.printStackTrace(); return SERVER_ERROR; }
+        return result;
     }
 
     @Override
@@ -91,27 +105,26 @@ public class StreetParkingQueryJSONTask extends AsyncTask<Void, Void, String>
             JSONObject queryResponse = new JSONObject(jsonResponse);
             ArrayList<StreetParking> parkingList = new ArrayList<>();
             JSONArray contextResponses = queryResponse.getJSONArray("contextResponses");
-            for (int i=0; i<contextResponses.length();i++){
+            for (int i = 0; i < contextResponses.length(); i++) {
                 JSONObject contextElement = contextResponses.getJSONObject(i).getJSONObject("contextElement");
                 parkingList.add(parseStreetElement(contextElement));
             }
             if (drawTask != null) {
+                if (shouldAdvertOnError) MapChangeListener.shouldRepeat(false);
                 TextToSpeechUtils.setStreetParkingList(parkingList);
-                drawTask.drawStreetParkings(gbb, parkingList);
+                drawTask.drawStreetParkings(parkingList);
             }
-            if (changeListener != null){
-                changeListener.resetOverlays();
-                changeListener.drawStreetParkings(gbb, parkingList);
-            }
-        }
-        catch (Exception E){
-            Log.e(TAG,QUERY_NO_VALUE_ERROR);
+        } catch (Exception E) {
+            Log.e(TAG, QUERY_NO_VALUE_ERROR);
+            Log.e(QUERY_NO_VALUE_ERROR, jsonResponse);
+            Log.e("REQUESTED", getRequestBody());
+            if (shouldAdvertOnError) MapChangeListener.shouldRepeat(true);
         }
     }
 
     ////////////////////////////////
 
-    private StreetParking parseStreetElement(JSONObject ctxElement){
+    private StreetParking parseStreetElement(JSONObject ctxElement) {
         try {
             if (!ctxElement.getString("type").contentEquals("StreetParking")) {
                 Log.e(TAG, QUERY_TYPE_ERROR);
@@ -126,11 +139,11 @@ public class StreetParkingQueryJSONTask extends AsyncTask<Void, Void, String>
             ArrayList<Parking.VehicleType> allowedVehicles = null;
             int availableSpotNumber = 0, totalSpotNumber = 0, extraSpotNumber = 0, maximumAllowedDuration = 0;
             boolean isMetered = false, spotDelimited = false;
-            String openingTime = "", closingTime = "";
+            String openingTime = "", closingTime = "", lastUpdated = "";
             float pricePerMinute = 0.0f, spotFindingProbability = 0.0f;
             Parking.ParkingDisposition parkingDisposition = null;
 
-            for (int i=0; i<attributes.length();i++){
+            for (int i = 0; i < attributes.length(); i++) {
                 JSONObject element = attributes.getJSONObject(i);
                 if (element.getString("name").contentEquals("allowedVehicles"))
                     allowedVehicles = retrieveAllowedVehiclesList(element);
@@ -145,6 +158,8 @@ public class StreetParkingQueryJSONTask extends AsyncTask<Void, Void, String>
                     location = retrieveParkingArea(element);
                 else if (element.getString("name").contentEquals("parking_disposition"))
                     parkingDisposition = retrieveParkingDisposition(element);
+                else if (element.getString("name").contentEquals("lastUpdated"))
+                    lastUpdated = element.getString("value");
             }
             //Creating a parking
             Parking parking = new Parking(
@@ -160,21 +175,21 @@ public class StreetParkingQueryJSONTask extends AsyncTask<Void, Void, String>
                     closingTime,
                     spotFindingProbability,
                     allowedVehicles,
-                    parkingDisposition
+                    parkingDisposition,
+                    lastUpdated
             );
-            return new StreetParking(parking,spotDelimited);
-        }
-        catch (Exception E) {
+            return new StreetParking(parking, spotDelimited);
+        } catch (Exception E) {
             E.printStackTrace();
             return null;
         }
     }
 
-    private ArrayList<Parking.VehicleType> retrieveAllowedVehiclesList(JSONObject element){
+    private ArrayList<Parking.VehicleType> retrieveAllowedVehiclesList(JSONObject element) {
         ArrayList<Parking.VehicleType> allowedVehicles = new ArrayList<>();
         try {
             JSONArray value = element.getJSONArray("value");
-            for (int i=0;i<value.length();i++){
+            for (int i = 0; i < value.length(); i++) {
                 if (value.getString(i).contentEquals("cars"))
                     allowedVehicles.add(Parking.VehicleType.Car);
                 else if (value.getString(i).contentEquals("motorcycles"))
@@ -182,12 +197,13 @@ public class StreetParkingQueryJSONTask extends AsyncTask<Void, Void, String>
                 else if (value.getString(i).contentEquals("bicycles"))
                     allowedVehicles.add(Parking.VehicleType.Bicycle);
             }
+        } catch (Exception e) {
+            e.printStackTrace();
         }
-        catch (Exception e) {e.printStackTrace();}
         return allowedVehicles;
     }
 
-    private Parking.ParkingDisposition retrieveParkingDisposition(JSONObject element){
+    private Parking.ParkingDisposition retrieveParkingDisposition(JSONObject element) {
         try {
             if (element.getString("value").contentEquals("Perpendicular"))
                 return Parking.ParkingDisposition.Perpendicular;
@@ -197,34 +213,31 @@ public class StreetParkingQueryJSONTask extends AsyncTask<Void, Void, String>
                 return Parking.ParkingDisposition.Angle;
             else
                 return null;
-        }
-        catch (Exception e) {
+        } catch (Exception e) {
             e.printStackTrace();
             return null;
         }
     }
 
-    private GeoCoordinate retrieveCenterCoords(JSONObject element){
+    private GeoCoordinate retrieveCenterCoords(JSONObject element) {
         try {
             String value = element.getString("value");
             String[] parts = value.split(",");
-            //return new GeoCoordinate(Double.parseDouble(parts[1]),Double.parseDouble(parts[0]));
-            return new GeoCoordinate(Double.parseDouble(parts[0]),Double.parseDouble(parts[1]));
-        }
-        catch (Exception e){
+            return new GeoCoordinate(Double.parseDouble(parts[0]), Double.parseDouble(parts[1]));
+        } catch (Exception e) {
             e.printStackTrace();
             return null;
         }
     }
 
-    private ArrayList<GeoPolygon> retrieveParkingArea(JSONObject element){
+    private ArrayList<GeoPolygon> retrieveParkingArea(JSONObject element) {
         ArrayList<GeoPolygon> parkingArea = new ArrayList<>();
         try {
             JSONArray multipolygonData = element.getJSONArray("value");
-            for (int i=0; i< multipolygonData.length(); i++){
+            for (int i = 0; i < multipolygonData.length(); i++) {
                 ArrayList<GeoCoordinate> line = new ArrayList<>();
                 JSONArray lineData = multipolygonData.getJSONArray(i).getJSONArray(0);
-                for (int j=0; j<lineData.length()-1; j++){
+                for (int j = 0; j < lineData.length() - 1; j++) {
                     line.add(new GeoCoordinate(
                             lineData.getJSONArray(j).getDouble(0),
                             lineData.getJSONArray(j).getDouble(1)
@@ -232,35 +245,39 @@ public class StreetParkingQueryJSONTask extends AsyncTask<Void, Void, String>
                 }
                 parkingArea.add(new GeoPolygon(line));
             }
+        } catch (Exception e) {
+            e.printStackTrace();
         }
-        catch (Exception e) { e.printStackTrace(); }
         return parkingArea;
     }
 
-    private String getRequestBody(){
+    private String getRequestBody() {
         GeoCoordinate corner1 = new GeoCoordinate(gbb.getTopLeft().getLatitude(), gbb.getBottomRight().getLongitude());
-        GeoCoordinate corner2 = new GeoCoordinate(gbb.getBottomRight().getLatitude(),gbb.getTopLeft().getLongitude());
-        //TODO: pagination
+        GeoCoordinate corner2 = new GeoCoordinate(gbb.getBottomRight().getLatitude(), gbb.getTopLeft().getLongitude());
 
-        String rqBody = "{\"entities\": [{ \"type\" : \"StreetParking\",\"isPattern\": \"true\",\"id\": \".*\"}],";
-        rqBody = rqBody.concat("\"restriction\" : {\"scopes\" : [{\"type\":\"FIWARE::Location\"," );
-        rqBody = rqBody.concat("\"value\":{\"polygon\" : { \"vertices\" : [");
+        DecimalFormat df = new DecimalFormat();
+        df.setMaximumIntegerDigits(3);
+        df.setMaximumFractionDigits(13);
+        df.setDecimalFormatSymbols(new DecimalFormatSymbols(Locale.ENGLISH));
 
-        rqBody = rqBody.concat("{\"latitude\":\"").concat(Double.toString(gbb.getTopLeft().getLatitude()));
-        rqBody = rqBody.concat("\",\"longitude\":\"").concat(Double.toString(gbb.getTopLeft().getLongitude()));
+        String rqBody = "{\"entities\":[{\"type\":\"StreetParking\",\"isPattern\":\"true\",\"id\":\".*\"}],";
+        rqBody = rqBody.concat("\"restriction\":{\"scopes\":[{\"type\":\"FIWARE::Location\",");
+        rqBody = rqBody.concat("\"value\":{\"polygon\":{\"vertices\":[");
+
+        rqBody = rqBody.concat("{\"latitude\":\"").concat(df.format(gbb.getTopLeft().getLatitude()));
+        rqBody = rqBody.concat("\",\"longitude\":\"").concat(df.format(gbb.getTopLeft().getLongitude()));
         rqBody = rqBody.concat("\"},");
-        rqBody = rqBody.concat("{\"latitude\":\"").concat(Double.toString(corner1.getLatitude()));
-        rqBody = rqBody.concat("\",\"longitude\":\"").concat(Double.toString(corner1.getLongitude()));
+        rqBody = rqBody.concat("{\"latitude\":\"").concat(df.format(corner1.getLatitude()));
+        rqBody = rqBody.concat("\",\"longitude\":\"").concat(df.format(corner1.getLongitude()));
         rqBody = rqBody.concat("\"},");
-        rqBody = rqBody.concat("{\"latitude\":\"").concat(Double.toString(gbb.getBottomRight().getLatitude()));
-        rqBody = rqBody.concat("\",\"longitude\":\"").concat(Double.toString(gbb.getBottomRight().getLongitude()));
+        rqBody = rqBody.concat("{\"latitude\":\"").concat(df.format(gbb.getBottomRight().getLatitude()));
+        rqBody = rqBody.concat("\",\"longitude\":\"").concat(df.format(gbb.getBottomRight().getLongitude()));
         rqBody = rqBody.concat("\"},");
-        rqBody = rqBody.concat("{\"latitude\":\"").concat(Double.toString(corner2.getLatitude()));
-        rqBody = rqBody.concat("\",\"longitude\":\"").concat(Double.toString(corner2.getLongitude()));
-        rqBody = rqBody.concat("\"}]}}}]}}");
+        rqBody = rqBody.concat("{\"latitude\":\"").concat(df.format(corner2.getLatitude()));
+        rqBody = rqBody.concat("\",\"longitude\":\"").concat(df.format(corner2.getLongitude()));
+        rqBody = rqBody.concat("\"}]}}}]}}\n");
 
         return rqBody;
     }
+
 }
-
-

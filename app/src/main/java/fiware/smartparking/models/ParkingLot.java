@@ -22,7 +22,7 @@ public class ParkingLot extends Parking {
         super(baseParking.getCenter(),baseParking.getParkingArea(),baseParking.isMetered(),baseParking.getMaximumAllowedDuration(),
                 baseParking.getTotalSpotNumber(),baseParking.getAvailableSpotNumber(),baseParking.getExtraSpotNumber(),
                 baseParking.getPricePerMinute(), baseParking.getOpeningTime(),baseParking.getClosingTime(),
-                baseParking.getProbabilityOfSpotFinding(),baseParking.getAllowedVehicles(),baseParking.getParkingDisposition());
+                baseParking.getProbabilityOfSpotFinding(),baseParking.getAllowedVehicles(),baseParking.getParkingDisposition(),baseParking.getLastUpdated());
 
         this.category = category;
         this.totalStoryNumber = totalStoryNumber;
@@ -62,4 +62,15 @@ public class ParkingLot extends Parking {
     public void setAverageSpotWidth(float averageSpotWidth) {this.averageSpotWidth = averageSpotWidth;}
     public void setAverageSpotLength(float averageSpotLength) {this.averageSpotLength = averageSpotLength;}
     public void setUserRating(float userRating) {this.userRating = userRating;}
+
+    public String description (){
+        String res = "Parking information: \n";
+        res = res.concat("\nTotal spots: ").concat(Integer.toString(this.getTotalSpotNumber()));
+        res = res.concat("\nAvailable spots: ").concat(Integer.toString(this.getAvailableSpotNumber()));
+        res = res.concat("\nMaximum time allowed: ").concat(Integer.toString(this.getMaximumAllowedDuration()));
+        res = res.concat("\nAllowed vehicles: ").concat(this.getAllowedVehiclesDescription());
+        res = res.concat("\nParking disposition: ").concat(this.getParkingDisposition().name());
+        res = res.concat("\nLast updated: ").concat(this.getLastUpdated());
+        return res;
+    }
 }
