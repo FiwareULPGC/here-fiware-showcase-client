@@ -51,6 +51,7 @@ public class ParkingDrawTask {
         this.map = map;
         lotContainer = new MapContainer();
         streetContainer =  new MapContainer();
+        streetContainer.setOverlayType(MapOverlayType.FOREGROUND_OVERLAY);
         lastStrParkings = new ArrayList<>();
         lastLotParkings = new ArrayList<>();
         lastStrPolygons = new ArrayList<>();
@@ -63,7 +64,8 @@ public class ParkingDrawTask {
         if (parkingIcon == null){
             parkingIcon = new Image();
             try {
-                parkingIcon.setImageResource(R.mipmap.parking);
+                //parkingIcon.setImageResource(R.mipmap.parking);
+                parkingIcon.setImageResource(R.mipmap.transparent);
             }
             catch (Exception e) { parkingIcon = null; }
         }
@@ -118,6 +120,8 @@ public class ParkingDrawTask {
                 strParkingMarker.setIcon(parkingIcon);
 
             strParkingMarker.setReserveOverlayType(MapOverlayType.FOREGROUND_OVERLAY);
+            strParkingMarker.setOverlayType(MapOverlayType.FOREGROUND_OVERLAY);
+            strParkingMarker.setOverlappingEnabled(false);
             strParkingMarker.setLabelText(map.getMapDisplayLanguage(),
                     Integer.toString(streetParking.getAvailableSpotNumber()));
             strParkingMarker.setFontScalingFactor(1.5f);
@@ -146,6 +150,8 @@ public class ParkingDrawTask {
                 lotParkingMarker.setIcon(parkingIcon);
 
             lotParkingMarker.setReserveOverlayType(MapOverlayType.FOREGROUND_OVERLAY);
+            lotParkingMarker.setOverlayType(MapOverlayType.FOREGROUND_OVERLAY);
+            lotParkingMarker.setOverlappingEnabled(false);
             lotParkingMarker.setFontScalingFactor(1.5f);
             lotParkingMarker = lotParkingMarker.setLabelText(map.getMapDisplayLanguage(),
                     Integer.toString(lotParking.getAvailableSpotNumber()));

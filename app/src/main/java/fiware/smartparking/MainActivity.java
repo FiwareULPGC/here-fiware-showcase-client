@@ -170,7 +170,7 @@ public class MainActivity extends MapActivity implements OnInitListener {
 
         @Override
         public boolean onLongPressEvent(PointF pointF) {
-            return false;
+            return true;
         }
 
         @Override
