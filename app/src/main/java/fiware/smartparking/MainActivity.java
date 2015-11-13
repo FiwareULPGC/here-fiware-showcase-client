@@ -236,7 +236,7 @@ public class MainActivity extends MapActivity implements OnInitListener {
                     DEFAULT_COORDS = new GeoCoordinate(40.637296, -8.635791);
 
                     if (changeListener == null)
-                        changeListener = new MapChangeListener(map,false);
+                        changeListener = new MapChangeListener(map,false,getApplicationContext());
                     map.addTransformListener(changeListener);
 
                     goTo(mapFragment.getMap(), DEFAULT_COORDS, Map.Animation.NONE);

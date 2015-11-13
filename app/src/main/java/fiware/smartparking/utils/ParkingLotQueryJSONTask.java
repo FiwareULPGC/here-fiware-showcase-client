@@ -23,21 +23,24 @@ import java.util.ArrayList;
 import java.util.Locale;
 
 import fiware.smartparking.models.Parking;
+import fiware.smartparking.models.ParkingAccess;
+import fiware.smartparking.models.ParkingLot;
+import fiware.smartparking.models.ParkingLotCategory;
 import fiware.smartparking.models.StreetParking;
 
 /**
  * Created by Ulpgc on 07/11/2015.
  */
-public class StreetParkingQueryJSONTask extends AsyncTask<Void, Void, String> {
-    public static String TAG = "StrParkingQueryJSONTask";
+public class ParkingLotQueryJSONTask extends AsyncTask<Void, Void, String> {
+    public static String TAG = "ParkingLotQueryJSONTask";
     public static String SERVER_ERROR = "Server Error";
-    public static String QUERY_TYPE_ERROR = "Found a non street parking element";
+    public static String QUERY_TYPE_ERROR = "Found a non parking lot element";
     public static String QUERY_NO_VALUE_ERROR = "0 street parkings are found";
 
     private ParkingDrawTask drawTask;
     private GeoBoundingBox gbb;
 
-    public StreetParkingQueryJSONTask(ParkingDrawTask drawTask, GeoBoundingBox gbb) {
+    public ParkingLotQueryJSONTask(ParkingDrawTask drawTask, GeoBoundingBox gbb) {
         this.drawTask = drawTask;
         this.gbb = gbb;
     }
@@ -99,15 +102,15 @@ public class StreetParkingQueryJSONTask extends AsyncTask<Void, Void, String> {
         }
         try {
             JSONObject queryResponse = new JSONObject(jsonResponse);
-            ArrayList<StreetParking> parkingList = new ArrayList<>();
+            ArrayList<ParkingLot> parkingList = new ArrayList<>();
             JSONArray contextResponses = queryResponse.getJSONArray("contextResponses");
             for (int i = 0; i < contextResponses.length(); i++) {
                 JSONObject contextElement = contextResponses.getJSONObject(i).getJSONObject("contextElement");
-                parkingList.add(parseStreetElement(contextElement));
+                parkingList.add(parseLotElement(contextElement));
             }
             if (drawTask != null) {
-                TextToSpeechUtils.setStreetParkingList(parkingList);
-                drawTask.drawStreetParkings(parkingList);
+                TextToSpeechUtils.setLotParkingList(parkingList);
+                drawTask.drawParkingLots(parkingList);
             }
         } catch (Exception E) {
             Log.e(TAG, QUERY_NO_VALUE_ERROR);
@@ -118,9 +121,9 @@ public class StreetParkingQueryJSONTask extends AsyncTask<Void, Void, String> {
 
     ////////////////////////////////
 
-    private StreetParking parseStreetElement(JSONObject ctxElement) {
+    private ParkingLot parseLotElement(JSONObject ctxElement) {
         try {
-            if (!ctxElement.getString("type").contentEquals("StreetParking")) {
+            if (!ctxElement.getString("type").contentEquals("ParkingLot")) {
                 Log.e(TAG, QUERY_TYPE_ERROR);
                 return null;
             }
@@ -132,7 +135,7 @@ public class StreetParkingQueryJSONTask extends AsyncTask<Void, Void, String> {
             ArrayList<GeoPolygon> location = null;
             ArrayList<Parking.VehicleType> allowedVehicles = null;
             int availableSpotNumber = 0, totalSpotNumber = 0, extraSpotNumber = 0, maximumAllowedDuration = 0;
-            boolean isMetered = false, spotDelimited = false;
+            boolean isMetered = false;
             String openingTime = "", closingTime = "", lastUpdated = "";
             float pricePerMinute = 0.0f, spotFindingProbability = 0.0f;
             Parking.ParkingDisposition parkingDisposition = null;
@@ -172,7 +175,15 @@ public class StreetParkingQueryJSONTask extends AsyncTask<Void, Void, String> {
                     parkingDisposition,
                     lastUpdated
             );
-            return new StreetParking(parking, spotDelimited);
+
+            //Parking Lot special variables = default
+            ArrayList<ParkingLotCategory> categories = null;
+            int totalStoryNumber = 0, firstAvailableStory = 0;
+            float averageSpotWidth = 0, averageSpotLength = 0, userRating = 0;
+            ArrayList<ParkingAccess> entrances = null, exits = null;
+
+            return new ParkingLot(parking, categories,totalStoryNumber,firstAvailableStory,entrances,
+                    exits,averageSpotWidth,averageSpotLength,userRating);
         } catch (Exception E) {
             E.printStackTrace();
             return null;
@@ -254,7 +265,7 @@ public class StreetParkingQueryJSONTask extends AsyncTask<Void, Void, String> {
         df.setMaximumFractionDigits(13);
         df.setDecimalFormatSymbols(new DecimalFormatSymbols(Locale.ENGLISH));
 
-        String rqBody = "{\"entities\":[{\"type\":\"StreetParking\",\"isPattern\":\"true\",\"id\":\".*\"}],";
+        String rqBody = "{\"entities\":[{\"type\":\"ParkingLot\",\"isPattern\":\"true\",\"id\":\".*\"}],";
         rqBody = rqBody.concat("\"restriction\":{\"scopes\":[{\"type\":\"FIWARE::Location\",");
         rqBody = rqBody.concat("\"value\":{\"polygon\":{\"vertices\":[");
 
@@ -275,3 +286,4 @@ public class StreetParkingQueryJSONTask extends AsyncTask<Void, Void, String> {
     }
 
 }
+

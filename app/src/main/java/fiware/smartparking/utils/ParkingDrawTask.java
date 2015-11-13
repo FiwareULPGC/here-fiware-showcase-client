@@ -1,6 +1,11 @@
 package fiware.smartparking.utils;
 
+import android.content.Context;
+import android.graphics.Bitmap;
+import android.graphics.BitmapFactory;
+import android.graphics.Canvas;
 import android.graphics.Color;
+import android.graphics.Paint;
 import android.util.Log;
 
 import com.here.android.mpa.common.GeoCoordinate;
@@ -10,6 +15,7 @@ import com.here.android.mpa.mapping.Map;
 import com.here.android.mpa.mapping.MapCircle;
 import com.here.android.mpa.mapping.MapContainer;
 import com.here.android.mpa.mapping.MapLabeledMarker;
+import com.here.android.mpa.mapping.MapMarker;
 import com.here.android.mpa.mapping.MapOverlayType;
 import com.here.android.mpa.mapping.MapPolygon;
 
@@ -31,7 +37,9 @@ public class ParkingDrawTask {
     private MapContainer lotContainer,streetContainer;
     private ArrayList<StreetParking> lastStrParkings;
     private ArrayList<ParkingLot> lastLotParkings;
-    private static Image parkingIcon;
+    private static Bitmap iconBitmap;
+    private static Context ctx;
+
     private boolean status;
     // Necessary since MapPolygon has no useful getters and we need to compare directly
     // between objects.
@@ -44,7 +52,7 @@ public class ParkingDrawTask {
             streetParkingIndex = index;
         }
     }
-    private ArrayList<MapPolygonWrapper> lastStrPolygons;
+    private ArrayList<MapPolygonWrapper> lastStrPolygons, lastLotPolygons;
 
     public ParkingDrawTask(Map map, boolean activeOnInit){
 
@@ -55,55 +63,12 @@ public class ParkingDrawTask {
         lastStrParkings = new ArrayList<>();
         lastLotParkings = new ArrayList<>();
         lastStrPolygons = new ArrayList<>();
+        lastLotPolygons = new ArrayList<>();
         status = activeOnInit;
         if (status) {
             this.map.addMapObject(lotContainer);
             this.map.addMapObject(streetContainer);
         }
-
-        if (parkingIcon == null){
-            parkingIcon = new Image();
-            try {
-                //parkingIcon.setImageResource(R.mipmap.parking);
-                parkingIcon.setImageResource(R.mipmap.transparent);
-            }
-            catch (Exception e) { parkingIcon = null; }
-        }
-    }
-
-    public static ArrayList<ParkingLot> getMockLotParkingList(){
-
-        //Oporto mock example
-        //GeoCoordinate center = new GeoCoordinate(41.161642, -8.621453);
-        //Aveiro mock example
-        //GeoCoordinate center = new GeoCoordinate(40.629793,-8.641643);
-        GeoCoordinate center = new GeoCoordinate(40.637796, -8.635491);
-
-        ArrayList<ParkingLotCategory> categories = new ArrayList<>();
-        categories.add(new ParkingLotCategory("Aparcamiento","Subterráneo"));
-
-        ArrayList<ParkingAccess> entrances = new ArrayList<>();
-        ArrayList<ParkingAccess> exits = new ArrayList<>();
-
-        ArrayList<Parking.VehicleType> allowedVehicles = new ArrayList<>();
-        allowedVehicles.add(Parking.VehicleType.Car);
-        allowedVehicles.add(Parking.VehicleType.Motorbike);
-        allowedVehicles.add(Parking.VehicleType.Bicycle);
-
-        ArrayList<ParkingLot> lotParkings = new ArrayList<>();
-        lotParkings.add(new ParkingLot(
-                new Parking(center, null, false, 60, 200, 32, 10, 0.15f, "08:00", "20:00", 0.86f,
-                        allowedVehicles, Parking.ParkingDisposition.Perpendicular,"12/11/2015 00:00:00"),
-                categories,
-                100,
-                22,
-                entrances,
-                exits,
-                4.4f,
-                2.1f,
-                3.8f
-        ));
-        return lotParkings;
     }
 
     public void drawStreetParkings(ArrayList<StreetParking> streetParkings){
@@ -112,20 +77,11 @@ public class ParkingDrawTask {
         }
         for (int i=0;i<streetParkings.size();i++) {
             StreetParking streetParking = streetParkings.get(i);
-            MapLabeledMarker strParkingMarker = new MapLabeledMarker(streetParking.getCenter() );
 
-            if (parkingIcon == null)
-                strParkingMarker.setIcon(IconCategory.PARKING_AREA);
-            else
-                strParkingMarker.setIcon(parkingIcon);
-
-            strParkingMarker.setReserveOverlayType(MapOverlayType.FOREGROUND_OVERLAY);
-            strParkingMarker.setOverlayType(MapOverlayType.FOREGROUND_OVERLAY);
-            strParkingMarker.setOverlappingEnabled(false);
-            strParkingMarker.setLabelText(map.getMapDisplayLanguage(),
-                    Integer.toString(streetParking.getAvailableSpotNumber()));
-            strParkingMarker.setFontScalingFactor(1.5f);
-            streetContainer.addMapObject(strParkingMarker);
+            MapMarker mapMarker = new MapMarker(streetParking.getCenter(), createLabeledIcon(
+                    Integer.toString(streetParking.getAvailableSpotNumber()), 16, Color.BLACK));
+            mapMarker.setOverlayType(MapOverlayType.FOREGROUND_OVERLAY);
+            streetContainer.addMapObject(mapMarker);
 
             for (int j=0;j<streetParking.getParkingPolygons();j++) {
                 MapPolygon streetPolygon = new MapPolygon(streetParking.getParkingAreaPolygonAt(j));
@@ -142,26 +98,18 @@ public class ParkingDrawTask {
         for (int i=0; i<lotParkings.size();i++){
             ParkingLot lotParking = lotParkings.get(i);
 
-            MapLabeledMarker lotParkingMarker = new MapLabeledMarker(lotParking.getCenter());
+            MapMarker mapMarker = new MapMarker(lotParking.getCenter(), createLabeledIcon(
+                    Integer.toString(lotParking.getAvailableSpotNumber()), 16, Color.BLACK));
+            mapMarker.setOverlayType(MapOverlayType.FOREGROUND_OVERLAY);
+            lotContainer.addMapObject(mapMarker);
 
-            if (parkingIcon == null)
-                lotParkingMarker.setIcon(IconCategory.PARKING_AREA);
-            else
-                lotParkingMarker.setIcon(parkingIcon);
-
-            lotParkingMarker.setReserveOverlayType(MapOverlayType.FOREGROUND_OVERLAY);
-            lotParkingMarker.setOverlayType(MapOverlayType.FOREGROUND_OVERLAY);
-            lotParkingMarker.setOverlappingEnabled(false);
-            lotParkingMarker.setFontScalingFactor(1.5f);
-            lotParkingMarker = lotParkingMarker.setLabelText(map.getMapDisplayLanguage(),
-                    Integer.toString(lotParking.getAvailableSpotNumber()));
-            lotContainer.addMapObject(lotParkingMarker);
-
-            //Creating a default circle with 10 meters radius
-            MapCircle circle = new MapCircle(10,lotParking.getCenter());
-            circle.setLineColor(Color.parseColor("#FF0000FF"));
-            circle.setFillColor(Color.parseColor("#770000FF"));
-            lotContainer.addMapObject(circle);
+            for (int j=0;j<lotParking.getParkingPolygons();j++) {
+                MapPolygon lotPolygon = new MapPolygon(lotParking.getParkingAreaPolygonAt(j));
+                lotPolygon.setLineColor(Color.parseColor("#FF0000FF"));
+                lotPolygon.setFillColor(Color.parseColor("#770000FF"));
+                lotContainer.addMapObject(lotPolygon);
+                lastLotPolygons.add(new MapPolygonWrapper(lotPolygon,i));
+            }
         }
     }
 
@@ -192,6 +140,7 @@ public class ParkingDrawTask {
     private void clearLotMarkers(){
         lotContainer.removeAllMapObjects();
         lastLotParkings.clear();
+        lastLotPolygons.clear();
     }
 
     private void clearStreetMarkers(){
@@ -238,6 +187,61 @@ public class ParkingDrawTask {
                     return lastLotParkings.get(i);
             }
         return null;
+    }
+
+    public ParkingLot parkingLotSelected (MapPolygon polygon){
+        if (status){
+            for (int i=0; i<lastLotPolygons.size();i++){
+                if (lastLotPolygons.get(i).mapPolygon.equals(polygon)){
+                    return lastLotParkings.get(lastLotPolygons.get(i).streetParkingIndex );
+                }
+            }
+        }
+        return null;
+    }
+
+    private Image createLabeledIcon(String text, float textSize, int textColor){
+        try {
+            if (iconBitmap == null)
+                iconBitmap = BitmapFactory.decodeResource(ctx.getResources(),R.mipmap.parking);
+            Paint paint = createPaint(textSize,textColor);
+            float baseline = -paint.ascent();
+            int textWidth = (int) (paint.measureText(text) + 0.5f);
+            int textHeight = (int) (baseline + paint.descent() + 0.5f);
+
+            int width = Math.max(iconBitmap.getWidth(), textWidth);
+            int height = iconBitmap.getHeight() + textHeight;
+            Bitmap resBitmap = Bitmap.createBitmap(width,height, Bitmap.Config.ARGB_8888);
+            Canvas resCanvas = new Canvas(resBitmap);
+            resCanvas.drawBitmap(iconBitmap, calculateLeft(width,iconBitmap.getWidth()), 0, null);
+            resCanvas.drawText(text, calculateLeft(width,textWidth), baseline+iconBitmap.getHeight(), paint);
+            Image resImage = new Image();
+            resImage.setBitmap(resBitmap);
+            return resImage;
+        }
+        catch (Exception e) {e.printStackTrace();}
+        return null;
+    }
+
+    private int calculateLeft (int globalWidth, int elementWidth){
+        return (globalWidth - elementWidth)/2;
+    }
+
+    public static void setApplicationContext(Context appContext){
+        ctx = appContext;
+    }
+
+    private float dipToPixels(float dip){
+        final float scale = ctx.getResources().getDisplayMetrics().density;
+        return (dip * scale);
+    }
+
+    private Paint createPaint(float textSize,int textColor){
+        Paint paint = new Paint();
+        paint.setTextSize(dipToPixels(textSize));
+        paint.setColor(textColor);
+        paint.setTextAlign(Paint.Align.LEFT);
+        return paint;
     }
 
 }

@@ -22,7 +22,9 @@ import fiware.smartparking.models.StreetParking;
  */
 public class DialogUtils {
 
-    public static void openDialog(Context ctx, final MapChangeListener changeListener) {
+    private final static int MAX_AREA_METERS = 10000;
+
+    public static void openDialog(final Context ctx, final MapChangeListener changeListener) {
         LayoutInflater inflater = (LayoutInflater) ctx.getSystemService(Context.LAYOUT_INFLATER_SERVICE);
         final Dialog dialog = new Dialog(ctx);
 
@@ -39,15 +41,22 @@ public class DialogUtils {
         ok.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View v) {
+                boolean showMetersErrorMessage = false;
                 if (changeListener != null) {
                     changeListener.setParkingOverlayActive(checkbox.isChecked());
                     try {
                         int meters = Integer.parseInt(editText.getText().toString());
-                        MapChangeListener.setDestinationAreaMeters(meters);
+                        if (meters > 0 && meters < MAX_AREA_METERS)
+                            MapChangeListener.setDestinationAreaMeters(meters);
+                        else showMetersErrorMessage = true;
                     } catch (Exception e) {
-                        Log.e("DialogUtils", "Needed a numerical unit");
+                        showMetersErrorMessage = true;
                     }
                     dialog.dismiss();
+                    if (showMetersErrorMessage)
+                        Toast.makeText(ctx,"Radius should be a number between 1 and "+Integer.toString(MAX_AREA_METERS),
+                                Toast.LENGTH_SHORT).show();
+
                 }
             }
         });

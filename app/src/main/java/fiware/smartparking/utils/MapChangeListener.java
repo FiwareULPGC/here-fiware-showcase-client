@@ -1,5 +1,6 @@
 package fiware.smartparking.utils;
 
+import android.content.Context;
 import android.os.AsyncTask;
 import android.util.Log;
 
@@ -10,6 +11,7 @@ import com.here.android.mpa.mapping.Map;
 import com.here.android.mpa.mapping.MapCircle;
 import com.here.android.mpa.mapping.MapContainer;
 import com.here.android.mpa.mapping.MapLabeledMarker;
+import com.here.android.mpa.mapping.MapMarker;
 import com.here.android.mpa.mapping.MapObject;
 import com.here.android.mpa.mapping.MapPolygon;
 import com.here.android.mpa.mapping.MapState;
@@ -37,9 +39,8 @@ public class MapChangeListener implements Map.OnTransformListener {
     private static int destinationAreaMeters = 250;
 
     private static final int minOffset = 10;
-    private static boolean shouldRepeat = false;
 
-    public MapChangeListener (Map map, boolean overlayActiveOnInit) {
+    public MapChangeListener (Map map, boolean overlayActiveOnInit, Context applicationContext) {
         generalParkingOverlay = new ParkingDrawTask(map,overlayActiveOnInit);
         routeParkingOverlay = null;
         associatedMap = map;
@@ -47,6 +48,7 @@ public class MapChangeListener implements Map.OnTransformListener {
         onRouteTo = false;
 
         parkingOverlayActivationState = overlayActiveOnInit;
+        ParkingDrawTask.setApplicationContext(applicationContext);
     }
 
     public void setParkingOverlayActive(boolean active) {
@@ -59,8 +61,13 @@ public class MapChangeListener implements Map.OnTransformListener {
 
         if (parkingOverlayActivationState) {
             StreetParkingQueryJSONTask task =
-                    new StreetParkingQueryJSONTask(generalParkingOverlay, associatedMap.getBoundingBox(),true);
+                    new StreetParkingQueryJSONTask(generalParkingOverlay, associatedMap.getBoundingBox());
             task.executeOnExecutor(AsyncTask.SERIAL_EXECUTOR, (Void[]) null);
+
+            ParkingLotQueryJSONTask lotParkingQuery =
+                    new ParkingLotQueryJSONTask(generalParkingOverlay,
+                            associatedMap.getBoundingBox());
+            lotParkingQuery.executeOnExecutor(AsyncTask.SERIAL_EXECUTOR,(Void[]) null);
         }
     }
 
@@ -88,24 +95,28 @@ public class MapChangeListener implements Map.OnTransformListener {
     public void onMapTransformEnd (MapState mapState){
         int mt = destinationAreaMeters * 2 + minOffset; //Radius*2 + minimumOffset
         if (onRouteTo){
-            if (destination.contains(mapState.getCenter()) && (routeParkingOverlay == null || shouldRepeat)) {
+            if (destination.contains(mapState.getCenter()) && (routeParkingOverlay == null)) {
                 routeParkingOverlay = new ParkingDrawTask(associatedMap,true);
 
                 StreetParkingQueryJSONTask strParkingQuery =
                         new StreetParkingQueryJSONTask(routeParkingOverlay,
-                                new GeoBoundingBox(destination.getCenter(), mt, mt),true);
+                                new GeoBoundingBox(destination.getCenter(), mt, mt));
                 strParkingQuery.executeOnExecutor(AsyncTask.SERIAL_EXECUTOR, (Void[]) null);
 
-                //MockLotParkingList. Should be substituted with a LotParking request.
-                ArrayList<ParkingLot> mock = ParkingDrawTask.getMockLotParkingList() ;
-                routeParkingOverlay.drawParkingLots(mock);
-                TextToSpeechUtils.setLotParkingList(mock);
+                ParkingLotQueryJSONTask lotParkingQuery =
+                        new ParkingLotQueryJSONTask(routeParkingOverlay,
+                                new GeoBoundingBox(destination.getCenter(), mt, mt));
+                lotParkingQuery.executeOnExecutor(AsyncTask.SERIAL_EXECUTOR, (Void[]) null);
             }
         }
         else if (parkingOverlayActivationState) {
             StreetParkingQueryJSONTask task = new StreetParkingQueryJSONTask(generalParkingOverlay,
-                    associatedMap.getBoundingBox(),false);
+                    associatedMap.getBoundingBox());
             task.executeOnExecutor(AsyncTask.SERIAL_EXECUTOR, (Void[]) null);
+            ParkingLotQueryJSONTask lotParkingQuery =
+                    new ParkingLotQueryJSONTask(generalParkingOverlay,
+                            associatedMap.getBoundingBox());
+            lotParkingQuery.executeOnExecutor(AsyncTask.SERIAL_EXECUTOR,(Void[]) null);
         }
     }
 
@@ -124,7 +135,7 @@ public class MapChangeListener implements Map.OnTransformListener {
 
         for (int i=0;i<list.size();i++){
             try {
-                MapLabeledMarker mp = (MapLabeledMarker) list.get(i);
+                MapMarker mp = (MapMarker) list.get(i);
                 res = generalParkingOverlay.parkingLotSelected(mp.getCoordinate());
                 if (res != null) break;
 
@@ -134,12 +145,12 @@ public class MapChangeListener implements Map.OnTransformListener {
             }
             catch (Exception e){
                 try {
-                    MapCircle mc = (MapCircle) list.get(i);
-                    res = generalParkingOverlay.parkingLotSelected(mc.getCenter());
+                    MapPolygon polygon = (MapPolygon) list.get(i);
+                    res = generalParkingOverlay.parkingLotSelected(polygon);
                     if (res != null) break;
 
                     if (routeParkingOverlay != null)
-                        res = routeParkingOverlay.parkingLotSelected(mc.getCenter());
+                        res = routeParkingOverlay.parkingLotSelected(polygon);
                     if (res != null) break;
                 }
                 catch (Exception err){
@@ -154,7 +165,7 @@ public class MapChangeListener implements Map.OnTransformListener {
         StreetParking res = null;
         for (int i=0;i<list.size();i++){
             try {
-                    MapLabeledMarker mp = (MapLabeledMarker) list.get(i);
+                    MapMarker mp = (MapMarker) list.get(i);
                     res = generalParkingOverlay.streetParkingSelected(mp.getCoordinate());
                     if (res != null) return res;
 
@@ -179,11 +190,6 @@ public class MapChangeListener implements Map.OnTransformListener {
             }
         }
         return res;
-    }
-
-
-    public static void shouldRepeat(boolean repeat){
-        shouldRepeat = repeat;
     }
 
     public static void setDestinationAreaMeters (int meters){
