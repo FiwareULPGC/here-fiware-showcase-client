@@ -1,6 +1,7 @@
 package fiware.smartparking.utils;
 
 import android.graphics.Color;
+import android.util.Log;
 
 import com.here.android.mpa.common.GeoCoordinate;
 import com.here.android.mpa.common.IconCategory;
@@ -32,6 +33,18 @@ public class ParkingDrawTask {
     private ArrayList<ParkingLot> lastLotParkings;
     private static Image parkingIcon;
     private boolean status;
+    // Necessary since MapPolygon has no useful getters and we need to compare directly
+    // between objects.
+    private class MapPolygonWrapper {
+        public MapPolygon mapPolygon;
+        public int streetParkingIndex;
+
+        MapPolygonWrapper(MapPolygon mapPolygon, int index){
+            this.mapPolygon = mapPolygon;
+            streetParkingIndex = index;
+        }
+    }
+    private ArrayList<MapPolygonWrapper> lastStrPolygons;
 
     public ParkingDrawTask(Map map, boolean activeOnInit){
 
@@ -40,6 +53,7 @@ public class ParkingDrawTask {
         streetContainer =  new MapContainer();
         lastStrParkings = new ArrayList<>();
         lastLotParkings = new ArrayList<>();
+        lastStrPolygons = new ArrayList<>();
         status = activeOnInit;
         if (status) {
             this.map.addMapObject(lotContainer);
@@ -114,6 +128,7 @@ public class ParkingDrawTask {
                 streetPolygon.setLineColor(Color.parseColor("#FF0000FF"));
                 streetPolygon.setFillColor(Color.parseColor("#770000FF"));
                 streetContainer.addMapObject(streetPolygon);
+                lastStrPolygons.add(new MapPolygonWrapper(streetPolygon,i));
             }
         }
     }
@@ -176,6 +191,7 @@ public class ParkingDrawTask {
     private void clearStreetMarkers(){
         streetContainer.removeAllMapObjects();
         lastStrParkings.clear();
+        lastStrPolygons.clear();
     }
 
     private void clearLotMarkers(ArrayList<ParkingLot> lotParkings){
@@ -194,6 +210,17 @@ public class ParkingDrawTask {
                     && (lastStrParkings.get(i).getCenter().getLongitude() == geo.getLongitude()))
                     return lastStrParkings.get(i);
             }
+        return null;
+    }
+
+    public StreetParking streetParkingSelected (MapPolygon polygon){
+        if (status){
+            for (int i=0;i<lastStrPolygons.size();i++){
+                if (lastStrPolygons.get(i).mapPolygon.equals(polygon)){
+                    return lastStrParkings.get(lastStrPolygons.get(i).streetParkingIndex);
+                }
+            }
+        }
         return null;
     }
 

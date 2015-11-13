@@ -7,10 +7,13 @@ import com.here.android.mpa.common.GeoBoundingBox;
 import com.here.android.mpa.common.GeoCoordinate;
 import com.here.android.mpa.common.ViewObject;
 import com.here.android.mpa.mapping.Map;
+import com.here.android.mpa.mapping.MapCircle;
 import com.here.android.mpa.mapping.MapContainer;
 import com.here.android.mpa.mapping.MapLabeledMarker;
 import com.here.android.mpa.mapping.MapObject;
+import com.here.android.mpa.mapping.MapPolygon;
 import com.here.android.mpa.mapping.MapState;
+import com.nokia.maps.MapPolygonImpl;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -118,8 +121,9 @@ public class MapChangeListener implements Map.OnTransformListener {
 
     public ParkingLot parkingLotSelected (List<ViewObject> list){
         ParkingLot res = null;
-        try {
-            for (int i=0;i<list.size();i++){
+
+        for (int i=0;i<list.size();i++){
+            try {
                 MapLabeledMarker mp = (MapLabeledMarker) list.get(i);
                 res = generalParkingOverlay.parkingLotSelected(mp.getCoordinate());
                 if (res != null) break;
@@ -127,10 +131,23 @@ public class MapChangeListener implements Map.OnTransformListener {
                 if (routeParkingOverlay != null)
                     res = routeParkingOverlay.parkingLotSelected(mp.getCoordinate());
                 if (res != null) break;
+            }
+            catch (Exception e){
+                try {
+                    MapCircle mc = (MapCircle) list.get(i);
+                    res = generalParkingOverlay.parkingLotSelected(mc.getCenter());
+                    if (res != null) break;
 
+                    if (routeParkingOverlay != null)
+                        res = routeParkingOverlay.parkingLotSelected(mc.getCenter());
+                    if (res != null) break;
+                }
+                catch (Exception err){
+                    err.printStackTrace();
+                }
             }
         }
-        finally { return res; }
+        return res;
     }
 
     public StreetParking streetParkingSelected(List<ViewObject> list){
@@ -145,7 +162,21 @@ public class MapChangeListener implements Map.OnTransformListener {
                         res = routeParkingOverlay.streetParkingSelected(mp.getCoordinate());
                     if (res != null) return res;
                 }
-            catch (Exception e) {e.printStackTrace();}
+            catch (Exception e) {
+                try {
+                    MapPolygon polygon = (MapPolygon) list.get(i);
+                    res = generalParkingOverlay.streetParkingSelected(polygon);
+                    if (res != null) return res;
+
+                    if (routeParkingOverlay != null)
+                        res = routeParkingOverlay.streetParkingSelected(polygon);
+                    if (res != null) return res;
+
+                }
+                catch (Exception err){
+                    err.printStackTrace();
+                }
+            }
         }
         return res;
     }
