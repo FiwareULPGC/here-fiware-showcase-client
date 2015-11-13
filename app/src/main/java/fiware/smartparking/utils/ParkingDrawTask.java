@@ -78,11 +78,6 @@ public class ParkingDrawTask {
         for (int i=0;i<streetParkings.size();i++) {
             StreetParking streetParking = streetParkings.get(i);
 
-            MapMarker mapMarker = new MapMarker(streetParking.getCenter(), createLabeledIcon(
-                    Integer.toString(streetParking.getAvailableSpotNumber()), 16, Color.BLACK));
-            mapMarker.setOverlayType(MapOverlayType.FOREGROUND_OVERLAY);
-            streetContainer.addMapObject(mapMarker);
-
             for (int j=0;j<streetParking.getParkingPolygons();j++) {
                 MapPolygon streetPolygon = new MapPolygon(streetParking.getParkingAreaPolygonAt(j));
                 streetPolygon.setLineColor(Color.parseColor("#FF0000FF"));
@@ -90,6 +85,12 @@ public class ParkingDrawTask {
                 streetContainer.addMapObject(streetPolygon);
                 lastStrPolygons.add(new MapPolygonWrapper(streetPolygon,i));
             }
+
+            MapMarker mapMarker = new MapMarker(streetParking.getCenter(), createLabeledIcon(
+                    Integer.toString(streetParking.getAvailableSpotNumber()), 16, Color.BLACK));
+            mapMarker.setOverlayType(MapOverlayType.FOREGROUND_OVERLAY);
+            streetContainer.addMapObject(mapMarker);
+
         }
     }
 
@@ -98,11 +99,6 @@ public class ParkingDrawTask {
         for (int i=0; i<lotParkings.size();i++){
             ParkingLot lotParking = lotParkings.get(i);
 
-            MapMarker mapMarker = new MapMarker(lotParking.getCenter(), createLabeledIcon(
-                    Integer.toString(lotParking.getAvailableSpotNumber()), 16, Color.BLACK));
-            mapMarker.setOverlayType(MapOverlayType.FOREGROUND_OVERLAY);
-            lotContainer.addMapObject(mapMarker);
-
             for (int j=0;j<lotParking.getParkingPolygons();j++) {
                 MapPolygon lotPolygon = new MapPolygon(lotParking.getParkingAreaPolygonAt(j));
                 lotPolygon.setLineColor(Color.parseColor("#FF0000FF"));
@@ -110,6 +106,11 @@ public class ParkingDrawTask {
                 lotContainer.addMapObject(lotPolygon);
                 lastLotPolygons.add(new MapPolygonWrapper(lotPolygon,i));
             }
+
+            MapMarker mapMarker = new MapMarker(lotParking.getCenter(), createLabeledIcon(
+                    Integer.toString(lotParking.getAvailableSpotNumber()), 16, Color.BLACK));
+            mapMarker.setOverlayType(MapOverlayType.FOREGROUND_OVERLAY);
+            lotContainer.addMapObject(mapMarker);
         }
     }
 
